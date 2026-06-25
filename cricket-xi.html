@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cricket XI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d0d0d;
+      --surface:    #141414;
+      --surface2:   #1c1c1c;
+      --surface3:   #222;
+      --border:     #2a2a2a;
+      --border2:    #333;
+      --gold:       #c9a227;
+      --gold-light: #e0b83a;
+      --text:       #e8e8e8;
+      --text-muted: #777;
+      --text-dim:   #444;
+      --font:       system-ui,-apple-system,"Segoe UI",sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      padding: 14px 20px 12px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; color: var(--gold); }
+    header p  { color: var(--text-muted); font-size: 0.7rem; letter-spacing: 1.5px; margin-top: 4px; text-transform: uppercase; }
+
+    /* ── LAYOUT ── */
+    .game-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── FIELD PANEL ── */
+    .field-panel {
+      background: radial-gradient(ellipse at 50% 40%, #1e5228 0%, #102018 70%, #080e0a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      border-right: 1px solid #0a1a0e;
+      gap: 14px;
+    }
+    .field-label { color: var(--text-dim); font-size: 0.6rem; letter-spacing: 4px; text-transform: uppercase; }
+
+    /* SVG wrapper — positions HTML overlays relative to this */
+    .field-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 290px;
+    }
+    #cricket-field {
+      display: block;
+      width: 100%;
+      filter: drop-shadow(0 12px 32px rgba(0,0,0,0.7));
+    }
+
+    /* ── POSITION OVERLAYS ── */
+    .fpos {
+      position: absolute;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: rgba(14, 34, 18, 0.92);
+      border: 2px solid #2a5a34;
+      transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.15s, opacity 0.18s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* Default label (role abbreviation) */
+    .fpos-lbl {
+      font-size: 6.5px;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: center;
+      line-height: 1.3;
+      pointer-events: none;
+    }
+    /* Initials shown when filled */
+    .fpos-init {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1px;
+      pointer-events: none;
+      display: none;
+    }
+    .fpos-role {
+      font-size: 5.5px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      pointer-events: none;
+      display: none;
+      margin-top: 1px;
+    }
+
+    /* States */
+    .fpos.filled {
+      border-color: #3adf60;
+      background: rgba(20, 74, 32, 0.92);
+    }
+    .fpos.filled .fpos-lbl  { display: none; }
+    .fpos.filled .fpos-init { display: block; }
+    .fpos.filled .fpos-role { display: block; }
+
+    /* Available = current spin has a player for this slot */
+    .fpos.available {
+      border-color: var(--gold);
+      background: rgba(28, 58, 16, 0.92);
+      box-shadow: 0 0 14px rgba(201,162,39,0.45);
+    }
+
+    /* During drag/selection: valid targets glow green */
+    .fpos.valid-target {
+      border-color: #00e87a;
+      background: rgba(20, 80, 40, 0.92);
+      box-shadow: 0 0 16px rgba(0,232,122,0.5);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    /* Hovering over a valid target during drag */
+    .fpos.drag-hover {
+      border-color: #00ff99;
+      background: rgba(30, 110, 55, 0.95);
+      box-shadow: 0 0 22px rgba(0,255,153,0.65);
+      transform: translate(-50%, -50%) scale(1.12);
+    }
+
+    /* Incompatible slots dim during drag/selection */
+    .fpos.invalid-target { opacity: 0.28; }
+
+    /* Selected source for move */
+    .fpos.move-source {
+      border-color: #fff;
+      box-shadow: 0 0 18px rgba(255,255,255,0.4);
+    }
+
+    .score-strip { text-align: center; display: none; }
+    .score-strip .sv { font-size: 2rem; font-weight: 700; color: var(--gold); line-height: 1; }
+    .score-strip .sl { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; }
+
+    .field-hint { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 1px; text-align: center; }
+
+    /* ── SELECTOR ── */
+    .selector-panel {
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Spin area */
+    .spin-area {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px 14px;
+      flex-shrink: 0;
+    }
+    .spin-label { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+    .spin-boxes { display: flex; gap: 8px; align-items: center; }
+    .spin-box {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 9px 14px;
+      min-width: 100px;
+      text-align: center;
+      letter-spacing: 0.5px;
+      transition: color 0.1s;
+    }
+    .spin-box.spinning { color: rgba(201,162,39,0.2); }
+    .spin-box.landed   { animation: pop 0.28s ease-out; }
+    @keyframes pop { 0%{transform:scale(0.88)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
+    .spin-divider { color: var(--text-dim); font-size: 1rem; }
+    .spin-status  { margin-top: 8px; font-size: 0.74rem; color: var(--text-dim); min-height: 16px; }
+    .spin-status.active { color: var(--gold); }
+
+    /* Re-spin */
+    .respin-row { display: flex; gap: 8px; margin-top: 12px; }
+    .respin-btn {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.74rem;
+      font-family: var(--font);
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s, border-color 0.15s, opacity 0.2s;
+      line-height: 1.4;
+    }
+    .respin-btn:hover:not(:disabled) { background: var(--surface3); border-color: var(--gold); }
+    .respin-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+    .respin-btn .rb-label { font-weight: 600; font-size: 0.76rem; }
+    .respin-btn .rb-uses  { color: var(--text-dim); font-size: 0.64rem; margin-top: 2px; }
+    .respin-btn:not(:disabled) .rb-uses { color: var(--gold); }
+
+    /* Search */
+    .search-wrap { padding: 12px 16px 0; flex-shrink: 0; }
+    .search-wrap input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      font-family: var(--font);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-wrap input::placeholder { color: var(--text-dim); }
+    .search-wrap input:focus { border-color: var(--gold); }
+
+    /* Players list */
+    .players-area { flex: 1; padding: 12px 16px 20px; overflow-y: auto; }
+    .players-header {
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .player-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s, opacity 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .player-card:hover    { border-color: var(--gold); background: var(--surface3); }
+    .player-card:active   { transform: scale(0.98); }
+    .player-card.selected { border-color: #00e87a; background: rgba(0,60,30,0.6); box-shadow: 0 0 10px rgba(0,232,122,0.3); }
+    .pc-name      { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+    .pc-stats     { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .pc-role-tag  { color: var(--gold); font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pc-arrow     { color: var(--text-dim); font-size: 1rem; flex-shrink: 0; transition: color 0.15s; }
+    .player-card:hover .pc-arrow { color: var(--gold); }
+
+    .no-players  { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 28px 16px; line-height: 1.8; }
+    .waiting-msg { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 36px 16px; line-height: 2; }
+    .waiting-msg strong { color: var(--gold); }
+
+    /* ── SCORE PANEL ── */
+    .score-panel { display: none; background: var(--surface); border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; }
+    .score-panel.visible { display: block; }
+    .sc-label { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+    .sc-total { font-size: 3.5rem; font-weight: 700; color: var(--gold); line-height: 1; }
+    .sc-grade { font-size: 1.1rem; margin: 12px 0 20px; color: var(--text); }
+    .sc-grid  { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; max-width: 720px; margin: 0 auto; }
+    .sc-row   { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; text-align: left; }
+    .sc-role  { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .sc-stats-reveal { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
+    .sc-combo { font-size: 0.64rem; color: var(--text-muted); margin-top: 1px; }
+    .sc-name  { font-size: 0.84rem; margin-top: 4px; color: var(--text); }
+    .sc-val   { font-weight: 700; color: var(--gold); font-size: 1.05rem; flex-shrink: 0; }
+    .sc-btns  { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .share-btn { background: var(--gold); color: #111; border: none; padding: 10px 28px; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: var(--font); font-size: 0.88rem; transition: background 0.15s; }
+    .share-btn:hover { background: var(--gold-light); }
+    .new-game-btn-end { background: transparent; color: var(--text); border: 1px solid var(--border2); padding: 10px 28px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: var(--font); font-size: 0.88rem; transition: border-color 0.15s; }
+    .new-game-btn-end:hover { border-color: var(--text-muted); }
+
+    .players-area::-webkit-scrollbar { width: 4px; }
+    .players-area::-webkit-scrollbar-track { background: transparent; }
+    .players-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    @media (max-width: 680px) {
+      .game-layout { grid-template-columns: 1fr; }
+      .field-panel { border-right: none; border-bottom: 1px solid #0a1a0e; }
+      .field-wrap  { max-width: 240px; }
+      .sc-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Cricket XI</h1>
+  <p>One pick at a time · 1970s onwards · Nation &amp; decade spins each round</p>
+</header>
+
+<div class="game-layout">
+
+  <!-- ── FIELD ── -->
+  <div class="field-panel">
+    <div class="field-label">Your XI</div>
+
+    <div class="field-wrap" id="field-wrap">
+
+      <!-- SVG background only — no interactive circles -->
+      <svg id="cricket-field" viewBox="0 0 280 400" xmlns="http://www.w3.org/2000/svg" style="pointer-events:none">
+        <defs>
+          <radialGradient id="fg" cx="50%" cy="48%" r="52%">
+            <stop offset="0%"   stop-color="#1e5a28"/>
+            <stop offset="100%" stop-color="#0c2814"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="140" cy="200" rx="133" ry="193" fill="url(#fg)" stroke="#091a0d" stroke-width="2"/>
+        <ellipse cx="140" cy="200" rx="86"  ry="116" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1.5"/>
+        <rect x="128" y="108" width="24" height="184" rx="3" fill="#b8a880" opacity="0.65"/>
+        <rect x="128" y="108" width="24" height="4"   rx="1" fill="#8a7a58" opacity="0.9"/>
+        <rect x="128" y="288" width="24" height="4"   rx="1" fill="#8a7a58" opacity="0.9"/>
+        <line x1="118" y1="128" x2="162" y2="128" stroke="#d8c8a0" stroke-width="1.2" opacity="0.35"/>
+        <line x1="118" y1="272" x2="162" y2="272" stroke="#d8c8a0" stroke-width="1.2" opacity="0.35"/>
+        <line x1="137" y1="112" x2="137" y2="130" stroke="#6a4a10" stroke-width="1.8"/>
+        <line x1="140" y1="110" x2="140" y2="130" stroke="#6a4a10" stroke-width="1.8"/>
+        <line x1="143" y1="112" x2="143" y2="130" stroke="#6a4a10" stroke-width="1.8"/>
+        <line x1="137" y1="270" x2="137" y2="288" stroke="#6a4a10" stroke-width="1.8"/>
+        <line x1="140" y1="270" x2="140" y2="290" stroke="#6a4a10" stroke-width="1.8"/>
+        <line x1="143" y1="270" x2="143" y2="288" stroke="#6a4a10" stroke-width="1.8"/>
+      </svg>
+
+      <!--
+        Position overlays — % positions match SVG viewBox 280×400:
+        keeper     cx=140,cy=62   → 50%,  15.5%
+        batter1    cx=88, cy=118  → 31.4%,29.5%
+        batter2    cx=192,cy=118  → 68.6%,29.5%
+        allrounder cx=140,cy=200  → 50%,  50%
+        bowler1    cx=82, cy=300  → 29.3%,75%
+        bowler2    cx=198,cy=300  → 70.7%,75%
+      -->
+      <div class="fpos" id="fpos-keeper"     data-slot="keeper"     style="left:50%;   top:15.5%" onclick="fpClick('keeper')">
+        <span class="fpos-lbl">WK</span>
+        <span class="fpos-init" id="finit-keeper"></span>
+        <span class="fpos-role" id="frole-keeper"></span>
+      </div>
+
+      <div class="fpos" id="fpos-batter1"    data-slot="batter1"    style="left:31.4%; top:29.5%" onclick="fpClick('batter1')">
+        <span class="fpos-lbl">BAT<br>#1</span>
+        <span class="fpos-init" id="finit-batter1"></span>
+        <span class="fpos-role" id="frole-batter1"></span>
+      </div>
+
+      <div class="fpos" id="fpos-batter2"    data-slot="batter2"    style="left:68.6%; top:29.5%" onclick="fpClick('batter2')">
+        <span class="fpos-lbl">BAT<br>#2</span>
+        <span class="fpos-init" id="finit-batter2"></span>
+        <span class="fpos-role" id="frole-batter2"></span>
+      </div>
+
+      <div class="fpos" id="fpos-allrounder" data-slot="allrounder" style="left:50%;   top:50%"   onclick="fpClick('allrounder')">
+        <span class="fpos-lbl">ALL<br>RND</span>
+        <span class="fpos-init" id="finit-allrounder"></span>
+        <span class="fpos-role" id="frole-allrounder"></span>
+      </div>
+
+      <div class="fpos" id="fpos-bowler1"    data-slot="bowler1"    style="left:29.3%; top:75%"   onclick="fpClick('bowler1')">
+        <span class="fpos-lbl">BWL<br>#1</span>
+        <span class="fpos-init" id="finit-bowler1"></span>
+        <span class="fpos-role" id="frole-bowler1"></span>
+      </div>
+
+      <div class="fpos" id="fpos-bowler2"    data-slot="bowler2"    style="left:70.7%; top:75%"   onclick="fpClick('bowler2')">
+        <span class="fpos-lbl">BWL<br>#2</span>
+        <span class="fpos-init" id="finit-bowler2"></span>
+        <span class="fpos-role" id="frole-bowler2"></span>
+      </div>
+
+    </div><!-- /field-wrap -->
+
+    <div class="score-strip" id="score-strip">
+      <div class="sv" id="running-score">0</div>
+      <div class="sl">/ 600</div>
+    </div>
+    <div class="field-hint">Click a player · then click a highlighted position to place them</div>
+
+  </div><!-- /field-panel -->
+
+  <!-- ── SELECTOR ── -->
+  <div class="selector-panel">
+
+    <div class="spin-area">
+      <div class="spin-label">Now Selecting</div>
+      <div class="spin-boxes">
+        <div class="spin-box" id="nation-spin">—</div>
+        <div class="spin-divider">·</div>
+        <div class="spin-box" id="decade-spin">—</div>
+      </div>
+      <div class="spin-status" id="spin-status"></div>
+      <div class="respin-row">
+        <button class="respin-btn" id="respin-decade-btn" onclick="reSpinDecade()" disabled>
+          <div class="rb-label">↻ Re-spin Decade</div>
+          <div class="rb-uses" id="respin-decade-uses">1 use remaining</div>
+        </button>
+        <button class="respin-btn" id="respin-nation-btn" onclick="reSpinNation()" disabled>
+          <div class="rb-label">⊕ Re-spin Nation</div>
+          <div class="rb-uses" id="respin-nation-uses">1 use remaining</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-wrap" id="search-wrap" style="display:none">
+      <input type="text" id="search-input" placeholder="Filter players…" oninput="filterPlayers()"/>
+    </div>
+
+    <div class="players-area" id="players-area">
+      <div class="waiting-msg">
+        <strong>Spinning…</strong><br><br>
+        Click a player, then click a glowing position on the field to place them.<br><br>
+        You have one <strong>Re-spin Decade</strong> and one <strong>Re-spin Nation</strong>.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Final score -->
+<div class="score-panel" id="score-panel">
+  <div class="sc-label">Final Score</div>
+  <div class="sc-total" id="sc-total">—</div>
+  <div class="sc-grade"  id="sc-grade"></div>
+  <div class="sc-grid"   id="sc-grid"></div>
+  <div class="sc-btns">
+    <button class="share-btn"        onclick="shareScore()">Copy Result</button>
+    <button class="new-game-btn-end" onclick="newGame()">New Game</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// PLAYER DATABASE
+// ════════════════════════════════════════════════════════
+const PLAYERS = [
+  // ── AUSTRALIA ──
+  { name:"Greg Chappell",        nation:"Australia", decades:["1970s","1980s"],          role:"batter",     stats:"7110 runs · avg 53.86"      },
+  { name:"Ricky Ponting",        nation:"Australia", decades:["1990s","2000s","2010s"],  role:"batter",     stats:"13378 runs · avg 51.85"     },
+  { name:"Steve Waugh",          nation:"Australia", decades:["1980s","1990s","2000s"],  role:"batter",     stats:"10927 runs · avg 51.06"     },
+  { name:"Matthew Hayden",       nation:"Australia", decades:["1990s","2000s"],          role:"batter",     stats:"8625 runs · avg 50.73"      },
+  { name:"Mark Taylor",          nation:"Australia", decades:["1980s","1990s"],          role:"batter",     stats:"7525 runs · avg 43.49"      },
+  { name:"David Warner",         nation:"Australia", decades:["2010s","2020s"],          role:"batter",     stats:"8695 runs · avg 44.59"      },
+  { name:"Michael Clarke",       nation:"Australia", decades:["2000s","2010s"],          role:"batter",     stats:"8643 runs · avg 49.10"      },
+  { name:"Justin Langer",        nation:"Australia", decades:["1990s","2000s"],          role:"batter",     stats:"7696 runs · avg 45.27"      },
+  { name:"Mark Waugh",           nation:"Australia", decades:["1990s","2000s"],          role:"batter",     stats:"8029 runs · avg 41.81"      },
+  { name:"Ian Chappell",         nation:"Australia", decades:["1970s"],                  role:"batter",     stats:"5345 runs · avg 42.42"      },
+  { name:"Bill Lawry",           nation:"Australia", decades:["1970s"],                  role:"batter",     stats:"5234 runs · avg 47.15"      },
+  { name:"Allan Border",         nation:"Australia", decades:["1980s","1990s"],          role:"batter",     stats:"11174 runs · avg 50.56"     },
+  { name:"Doug Walters",         nation:"Australia", decades:["1970s","1980s"],          role:"batter",     stats:"5357 runs · avg 48.26"      },
+  { name:"Kim Hughes",           nation:"Australia", decades:["1970s","1980s"],          role:"batter",     stats:"4415 runs · avg 37.41"      },
+  { name:"Graeme Wood",          nation:"Australia", decades:["1970s","1980s"],          role:"batter",     stats:"3374 runs · avg 31.83"      },
+  { name:"Dean Jones",           nation:"Australia", decades:["1980s","1990s"],          role:"batter",     stats:"3631 runs · avg 46.55"      },
+  { name:"David Boon",           nation:"Australia", decades:["1980s","1990s"],          role:"batter",     stats:"7422 runs · avg 43.65"      },
+  { name:"Damien Martyn",        nation:"Australia", decades:["1990s","2000s"],          role:"batter",     stats:"4406 runs · avg 46.37"      },
+  { name:"Simon Katich",         nation:"Australia", decades:["2000s","2010s"],          role:"batter",     stats:"4188 runs · avg 45.03"      },
+  { name:"Michael Hussey",       nation:"Australia", decades:["2000s","2010s"],          role:"batter",     stats:"6235 runs · avg 51.52"      },
+  { name:"Steve Smith",          nation:"Australia", decades:["2010s","2020s"],          role:"batter",     stats:"9000+ runs · avg 59+"       },
+  { name:"Marnus Labuschagne",   nation:"Australia", decades:["2010s","2020s"],          role:"batter",     stats:"3500+ runs · avg 55+"       },
+  { name:"Travis Head",          nation:"Australia", decades:["2010s","2020s"],          role:"batter",     stats:"3000+ runs"                  },
+  { name:"Phil Hughes",          nation:"Australia", decades:["2000s","2010s"],          role:"batter",     stats:"1535 runs · avg 32.65"      },
+  { name:"Shane Warne",          nation:"Australia", decades:["1990s","2000s"],          role:"bowler",     stats:"708 wickets · avg 25.41"    },
+  { name:"Glenn McGrath",        nation:"Australia", decades:["1990s","2000s"],          role:"bowler",     stats:"563 wickets · avg 21.64"    },
+  { name:"Dennis Lillee",        nation:"Australia", decades:["1970s","1980s"],          role:"bowler",     stats:"355 wickets · avg 23.92"    },
+  { name:"Jeff Thomson",         nation:"Australia", decades:["1970s","1980s"],          role:"bowler",     stats:"200 wickets · avg 28.00"    },
+  { name:"Brett Lee",            nation:"Australia", decades:["2000s","2010s"],          role:"bowler",     stats:"310 wickets · avg 30.81"    },
+  { name:"Mitchell Starc",       nation:"Australia", decades:["2010s","2020s"],          role:"bowler",     stats:"330+ wickets"                },
+  { name:"Nathan Lyon",          nation:"Australia", decades:["2010s","2020s"],          role:"bowler",     stats:"530+ wickets"                },
+  { name:"Jason Gillespie",      nation:"Australia", decades:["1990s","2000s"],          role:"bowler",     stats:"259 wickets · avg 26.13"    },
+  { name:"Terry Alderman",       nation:"Australia", decades:["1980s","1990s"],          role:"bowler",     stats:"170 wickets · avg 27.15"    },
+  { name:"Craig McDermott",      nation:"Australia", decades:["1980s","1990s"],          role:"bowler",     stats:"291 wickets · avg 28.63"    },
+  { name:"Merv Hughes",          nation:"Australia", decades:["1980s","1990s"],          role:"bowler",     stats:"212 wickets · avg 28.38"    },
+  { name:"Pat Cummins",          nation:"Australia", decades:["2010s","2020s"],          role:"bowler",     stats:"250+ wickets"                },
+  { name:"Josh Hazlewood",       nation:"Australia", decades:["2010s","2020s"],          role:"bowler",     stats:"250+ wickets"                },
+  { name:"Stuart MacGill",       nation:"Australia", decades:["1990s","2000s"],          role:"bowler",     stats:"208 wickets · avg 29.02"    },
+  { name:"Max Walker",           nation:"Australia", decades:["1970s","1980s"],          role:"bowler",     stats:"138 wickets · avg 27.47"    },
+  { name:"Geoff Lawson",         nation:"Australia", decades:["1980s","1990s"],          role:"bowler",     stats:"180 wickets · avg 30.56"    },
+  { name:"Peter Siddle",         nation:"Australia", decades:["2000s","2010s"],          role:"bowler",     stats:"221 wickets · avg 30.05"    },
+  { name:"Keith Miller",         nation:"Australia", decades:["1970s"],                  role:"allrounder", stats:"2958 runs · 170 wickets"    },
+  { name:"Andrew Symonds",       nation:"Australia", decades:["2000s"],                  role:"allrounder", stats:"1462 runs · 24 wickets"     },
+  { name:"Shane Watson",         nation:"Australia", decades:["2000s","2010s"],          role:"allrounder", stats:"3731 runs · 75 wickets"     },
+  { name:"Cameron Green",        nation:"Australia", decades:["2020s"],                  role:"allrounder", stats:"1100+ runs · 50+ wickets"   },
+  { name:"Tom Moody",            nation:"Australia", decades:["1990s","2000s"],          role:"allrounder", stats:"1274 runs · 16 wickets"     },
+  { name:"Adam Gilchrist",       nation:"Australia", decades:["1990s","2000s","2010s"],  role:"keeper",     stats:"5570 runs · 416 dismissals" },
+  { name:"Ian Healy",            nation:"Australia", decades:["1980s","1990s","2000s"],  role:"keeper",     stats:"4356 runs · 395 dismissals" },
+  { name:"Brad Haddin",          nation:"Australia", decades:["2000s","2010s"],          role:"keeper",     stats:"3266 runs · 270 dismissals" },
+  { name:"Rodney Marsh",         nation:"Australia", decades:["1970s","1980s"],          role:"keeper",     stats:"3633 runs · 355 dismissals" },
+  { name:"Alex Carey",           nation:"Australia", decades:["2020s"],                  role:"keeper",     stats:"1500+ runs"                  },
+  // ── ENGLAND ──
+  { name:"Joe Root",             nation:"England",   decades:["2010s","2020s"],          role:"batter",     stats:"12000+ runs · avg 50+"      },
+  { name:"Alastair Cook",        nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"12472 runs · avg 45.35"     },
+  { name:"Kevin Pietersen",      nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"8181 runs · avg 47.28"      },
+  { name:"Graham Gooch",         nation:"England",   decades:["1970s","1980s","1990s"],  role:"batter",     stats:"8900 runs · avg 42.58"      },
+  { name:"Geoff Boycott",        nation:"England",   decades:["1970s","1980s"],          role:"batter",     stats:"8114 runs · avg 47.72"      },
+  { name:"David Gower",          nation:"England",   decades:["1970s","1980s","1990s"],  role:"batter",     stats:"8231 runs · avg 44.25"      },
+  { name:"Colin Cowdrey",        nation:"England",   decades:["1970s"],                  role:"batter",     stats:"7624 runs · avg 44.06"      },
+  { name:"Mike Gatting",         nation:"England",   decades:["1980s","1990s"],          role:"batter",     stats:"4409 runs · avg 35.55"      },
+  { name:"Nasser Hussain",       nation:"England",   decades:["1990s","2000s"],          role:"batter",     stats:"5764 runs · avg 37.18"      },
+  { name:"Michael Atherton",     nation:"England",   decades:["1990s","2000s"],          role:"batter",     stats:"7728 runs · avg 37.69"      },
+  { name:"Tony Greig",           nation:"England",   decades:["1970s","1980s"],          role:"allrounder", stats:"3599 runs · 141 wickets"    },
+  { name:"Dennis Amiss",         nation:"England",   decades:["1970s","1980s"],          role:"batter",     stats:"3612 runs · avg 46.30"      },
+  { name:"Derek Randall",        nation:"England",   decades:["1970s","1980s"],          role:"batter",     stats:"2470 runs · avg 33.37"      },
+  { name:"Robin Smith",          nation:"England",   decades:["1980s","1990s"],          role:"batter",     stats:"4236 runs · avg 43.67"      },
+  { name:"Andrew Strauss",       nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"7037 runs · avg 40.91"      },
+  { name:"Marcus Trescothick",   nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"5825 runs · avg 43.79"      },
+  { name:"Jonathan Trott",       nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"3835 runs · avg 44.08"      },
+  { name:"Ian Bell",             nation:"England",   decades:["2000s","2010s"],          role:"batter",     stats:"7727 runs · avg 42.69"      },
+  { name:"Mark Ramprakash",      nation:"England",   decades:["1990s","2000s"],          role:"batter",     stats:"2350 runs · avg 27.32"      },
+  { name:"Zak Crawley",          nation:"England",   decades:["2020s"],                  role:"batter",     stats:"3000+ runs"                  },
+  { name:"Ollie Pope",           nation:"England",   decades:["2020s"],                  role:"batter",     stats:"2500+ runs"                  },
+  { name:"James Anderson",       nation:"England",   decades:["2000s","2010s","2020s"],  role:"bowler",     stats:"700 wickets"                 },
+  { name:"Stuart Broad",         nation:"England",   decades:["2000s","2010s","2020s"],  role:"bowler",     stats:"604 wickets"                 },
+  { name:"Bob Willis",           nation:"England",   decades:["1970s","1980s"],          role:"bowler",     stats:"325 wickets · avg 25.20"    },
+  { name:"Derek Underwood",      nation:"England",   decades:["1970s","1980s"],          role:"bowler",     stats:"297 wickets · avg 25.83"    },
+  { name:"John Snow",            nation:"England",   decades:["1970s"],                  role:"bowler",     stats:"202 wickets · avg 26.66"    },
+  { name:"Phil Tufnell",         nation:"England",   decades:["1990s","2000s"],          role:"bowler",     stats:"121 wickets · avg 37.68"    },
+  { name:"Darren Gough",         nation:"England",   decades:["1990s","2000s"],          role:"bowler",     stats:"229 wickets · avg 28.39"    },
+  { name:"Steve Harmison",       nation:"England",   decades:["2000s","2010s"],          role:"bowler",     stats:"226 wickets · avg 31.82"    },
+  { name:"Graeme Swann",         nation:"England",   decades:["2000s","2010s"],          role:"bowler",     stats:"255 wickets · avg 29.96"    },
+  { name:"Monty Panesar",        nation:"England",   decades:["2000s","2010s"],          role:"bowler",     stats:"167 wickets · avg 34.71"    },
+  { name:"Graham Dilley",        nation:"England",   decades:["1980s","1990s"],          role:"bowler",     stats:"138 wickets · avg 29.76"    },
+  { name:"Mark Wood",            nation:"England",   decades:["2010s","2020s"],          role:"bowler",     stats:"150+ wickets"                },
+  { name:"Dominic Cork",         nation:"England",   decades:["1990s","2000s"],          role:"allrounder", stats:"1228 runs · 131 wickets"    },
+  { name:"Ian Botham",           nation:"England",   decades:["1970s","1980s","1990s"],  role:"allrounder", stats:"5200 runs · 383 wickets"    },
+  { name:"Andrew Flintoff",      nation:"England",   decades:["2000s","2010s"],          role:"allrounder", stats:"3845 runs · 226 wickets"    },
+  { name:"Ben Stokes",           nation:"England",   decades:["2010s","2020s"],          role:"allrounder", stats:"6000+ runs · 200+ wickets"  },
+  { name:"Chris Woakes",         nation:"England",   decades:["2010s","2020s"],          role:"allrounder", stats:"2000+ runs · 170+ wickets"  },
+  { name:"Sam Curran",           nation:"England",   decades:["2010s","2020s"],          role:"allrounder", stats:"1000+ runs · 100+ wickets"  },
+  { name:"Alan Knott",           nation:"England",   decades:["1970s","1980s"],          role:"keeper",     stats:"4389 runs · 269 dismissals" },
+  { name:"Alec Stewart",         nation:"England",   decades:["1980s","1990s","2000s"],  role:"keeper",     stats:"8463 runs · 277 dismissals" },
+  { name:"Jos Buttler",          nation:"England",   decades:["2010s","2020s"],          role:"keeper",     stats:"2500+ runs"                  },
+  { name:"Matt Prior",           nation:"England",   decades:["2000s","2010s"],          role:"keeper",     stats:"2610 runs · 243 dismissals" },
+  { name:"Jack Russell",         nation:"England",   decades:["1980s","1990s"],          role:"keeper",     stats:"1897 runs · 165 dismissals" },
+  { name:"Jonny Bairstow",       nation:"England",   decades:["2010s","2020s"],          role:"keeper",     stats:"4000+ runs · 260+ dismissals"},
+  // ── INDIA ──
+  { name:"Sachin Tendulkar",     nation:"India",     decades:["1980s","1990s","2000s","2010s"], role:"batter", stats:"15921 runs · avg 53.78" },
+  { name:"Rahul Dravid",         nation:"India",     decades:["1990s","2000s","2010s"],  role:"batter",     stats:"13288 runs · avg 52.31"     },
+  { name:"Sunil Gavaskar",       nation:"India",     decades:["1970s","1980s"],          role:"batter",     stats:"10122 runs · avg 51.12"     },
+  { name:"VVS Laxman",           nation:"India",     decades:["1990s","2000s","2010s"],  role:"batter",     stats:"8781 runs · avg 45.97"      },
+  { name:"Virat Kohli",          nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"9000+ runs"                  },
+  { name:"Rohit Sharma",         nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"4000+ runs"                  },
+  { name:"Sourav Ganguly",       nation:"India",     decades:["1990s","2000s"],          role:"batter",     stats:"7212 runs · avg 42.17"      },
+  { name:"GR Viswanath",         nation:"India",     decades:["1970s","1980s"],          role:"batter",     stats:"6080 runs · avg 41.93"      },
+  { name:"Dilip Vengsarkar",     nation:"India",     decades:["1970s","1980s","1990s"],  role:"batter",     stats:"6868 runs · avg 42.13"      },
+  { name:"Mohammad Azharuddin",  nation:"India",     decades:["1980s","1990s","2000s"],  role:"batter",     stats:"6215 runs · avg 45.03"      },
+  { name:"Cheteshwar Pujara",    nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"7000+ runs"                  },
+  { name:"Virender Sehwag",      nation:"India",     decades:["2000s","2010s"],          role:"batter",     stats:"8586 runs · avg 49.34"      },
+  { name:"Mohinder Amarnath",    nation:"India",     decades:["1970s","1980s","1990s"],  role:"allrounder", stats:"4378 runs · 32 wickets"     },
+  { name:"Kris Srikkanth",       nation:"India",     decades:["1980s","1990s"],          role:"batter",     stats:"2062 runs · avg 29.88"      },
+  { name:"Sandip Patil",         nation:"India",     decades:["1980s"],                  role:"batter",     stats:"1588 runs · avg 36.93"      },
+  { name:"Navjot Sidhu",         nation:"India",     decades:["1990s"],                  role:"batter",     stats:"3202 runs · avg 42.13"      },
+  { name:"Shikhar Dhawan",       nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"2315 runs · avg 40.61"      },
+  { name:"KL Rahul",             nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"3000+ runs"                  },
+  { name:"Ajinkya Rahane",       nation:"India",     decades:["2010s","2020s"],          role:"batter",     stats:"5000+ runs"                  },
+  { name:"Yuvraj Singh",         nation:"India",     decades:["2000s","2010s"],          role:"allrounder", stats:"1900 runs · 40 wickets"     },
+  { name:"Suresh Raina",         nation:"India",     decades:["2000s","2010s"],          role:"batter",     stats:"768 runs · avg 26.48"       },
+  { name:"Anil Kumble",          nation:"India",     decades:["1990s","2000s","2010s"],  role:"bowler",     stats:"619 wickets · avg 29.65"    },
+  { name:"Ravichandran Ashwin",  nation:"India",     decades:["2010s","2020s"],          role:"bowler",     stats:"500+ wickets"                },
+  { name:"Harbhajan Singh",      nation:"India",     decades:["2000s","2010s"],          role:"bowler",     stats:"417 wickets · avg 32.46"    },
+  { name:"Zaheer Khan",          nation:"India",     decades:["2000s","2010s"],          role:"bowler",     stats:"311 wickets · avg 32.94"    },
+  { name:"Jasprit Bumrah",       nation:"India",     decades:["2010s","2020s"],          role:"bowler",     stats:"200+ wickets"                },
+  { name:"BS Chandrasekhar",     nation:"India",     decades:["1970s","1980s"],          role:"bowler",     stats:"242 wickets · avg 29.74"    },
+  { name:"Bishan Bedi",          nation:"India",     decades:["1970s","1980s"],          role:"bowler",     stats:"266 wickets · avg 28.71"    },
+  { name:"EAS Prasanna",         nation:"India",     decades:["1970s","1980s"],          role:"bowler",     stats:"189 wickets · avg 30.38"    },
+  { name:"S Venkataraghavan",    nation:"India",     decades:["1970s","1980s"],          role:"bowler",     stats:"156 wickets · avg 36.11"    },
+  { name:"Javagal Srinath",      nation:"India",     decades:["1990s","2000s"],          role:"bowler",     stats:"236 wickets · avg 30.49"    },
+  { name:"Mohammed Shami",       nation:"India",     decades:["2010s","2020s"],          role:"bowler",     stats:"220+ wickets"                },
+  { name:"Bhuvneshwar Kumar",    nation:"India",     decades:["2010s","2020s"],          role:"bowler",     stats:"140+ wickets"                },
+  { name:"Umesh Yadav",          nation:"India",     decades:["2010s","2020s"],          role:"bowler",     stats:"170+ wickets"                },
+  { name:"Irfan Pathan",         nation:"India",     decades:["2000s","2010s"],          role:"allrounder", stats:"1105 runs · 100 wickets"    },
+  { name:"Kapil Dev",            nation:"India",     decades:["1970s","1980s","1990s"],  role:"allrounder", stats:"5248 runs · 434 wickets"    },
+  { name:"Ravi Shastri",         nation:"India",     decades:["1980s","1990s"],          role:"allrounder", stats:"3830 runs · 151 wickets"    },
+  { name:"Ravindra Jadeja",      nation:"India",     decades:["2010s","2020s"],          role:"allrounder", stats:"3000+ runs · 300+ wickets"  },
+  { name:"MS Dhoni",             nation:"India",     decades:["2000s","2010s"],          role:"keeper",     stats:"4876 runs · 294 dismissals" },
+  { name:"Rishabh Pant",         nation:"India",     decades:["2010s","2020s"],          role:"keeper",     stats:"2500+ runs"                  },
+  { name:"Syed Kirmani",         nation:"India",     decades:["1970s","1980s"],          role:"keeper",     stats:"2759 runs · 198 dismissals" },
+  { name:"Farokh Engineer",      nation:"India",     decades:["1970s"],                  role:"keeper",     stats:"2611 runs · 82 dismissals"  },
+  { name:"Nayan Mongia",         nation:"India",     decades:["1990s","2000s"],          role:"keeper",     stats:"1442 runs · 107 dismissals" },
+  { name:"Wriddhiman Saha",      nation:"India",     decades:["2010s","2020s"],          role:"keeper",     stats:"1200+ runs · 90+ dismissals"},
+  { name:"Parthiv Patel",        nation:"India",     decades:["2000s","2010s"],          role:"keeper",     stats:"934 runs · 87 dismissals"   },
+  // ── PAKISTAN ──
+  { name:"Babar Azam",           nation:"Pakistan",  decades:["2010s","2020s"],          role:"batter",     stats:"4000+ runs"                  },
+  { name:"Javed Miandad",        nation:"Pakistan",  decades:["1970s","1980s","1990s"],  role:"batter",     stats:"8832 runs · avg 52.57"      },
+  { name:"Inzamam-ul-Haq",       nation:"Pakistan",  decades:["1990s","2000s"],          role:"batter",     stats:"8829 runs · avg 49.60"      },
+  { name:"Zaheer Abbas",         nation:"Pakistan",  decades:["1970s","1980s"],          role:"batter",     stats:"5062 runs · avg 44.79"      },
+  { name:"Mohammad Yousuf",      nation:"Pakistan",  decades:["1990s","2000s","2010s"],  role:"batter",     stats:"7530 runs · avg 52.29"      },
+  { name:"Hanif Mohammad",       nation:"Pakistan",  decades:["1970s"],                  role:"batter",     stats:"3915 runs · avg 43.98"      },
+  { name:"Younis Khan",          nation:"Pakistan",  decades:["2000s","2010s"],          role:"batter",     stats:"10099 runs · avg 52.05"     },
+  { name:"Saeed Anwar",          nation:"Pakistan",  decades:["1990s","2000s"],          role:"batter",     stats:"4052 runs · avg 45.52"      },
+  { name:"Majid Khan",           nation:"Pakistan",  decades:["1970s","1980s"],          role:"batter",     stats:"3931 runs · avg 38.92"      },
+  { name:"Mushtaq Mohammad",     nation:"Pakistan",  decades:["1970s","1980s"],          role:"allrounder", stats:"3643 runs · 79 wickets"     },
+  { name:"Asif Iqbal",           nation:"Pakistan",  decades:["1970s","1980s"],          role:"batter",     stats:"3575 runs · avg 38.85"      },
+  { name:"Mudassar Nazar",       nation:"Pakistan",  decades:["1970s","1980s","1990s"],  role:"allrounder", stats:"4114 runs · 66 wickets"     },
+  { name:"Rameez Raja",          nation:"Pakistan",  decades:["1980s","1990s"],          role:"batter",     stats:"2833 runs · avg 31.47"      },
+  { name:"Aamer Sohail",         nation:"Pakistan",  decades:["1990s","2000s"],          role:"batter",     stats:"2823 runs · avg 34.43"      },
+  { name:"Ijaz Ahmed",           nation:"Pakistan",  decades:["1980s","1990s","2000s"],  role:"batter",     stats:"3315 runs · avg 35.26"      },
+  { name:"Misbah-ul-Haq",        nation:"Pakistan",  decades:["2000s","2010s"],          role:"batter",     stats:"5222 runs · avg 46.62"      },
+  { name:"Azhar Ali",            nation:"Pakistan",  decades:["2010s","2020s"],          role:"batter",     stats:"7000+ runs"                  },
+  { name:"Asad Shafiq",          nation:"Pakistan",  decades:["2010s","2020s"],          role:"batter",     stats:"5000+ runs"                  },
+  { name:"Wasim Akram",          nation:"Pakistan",  decades:["1980s","1990s","2000s"],  role:"bowler",     stats:"414 wickets · avg 23.62"    },
+  { name:"Waqar Younis",         nation:"Pakistan",  decades:["1990s","2000s"],          role:"bowler",     stats:"373 wickets · avg 23.56"    },
+  { name:"Shoaib Akhtar",        nation:"Pakistan",  decades:["2000s","2010s"],          role:"bowler",     stats:"178 wickets · avg 25.69"    },
+  { name:"Danish Kaneria",       nation:"Pakistan",  decades:["2000s","2010s"],          role:"bowler",     stats:"261 wickets · avg 34.79"    },
+  { name:"Shaheen Afridi",       nation:"Pakistan",  decades:["2010s","2020s"],          role:"bowler",     stats:"200+ wickets"                },
+  { name:"Saqlain Mushtaq",      nation:"Pakistan",  decades:["1990s","2000s"],          role:"bowler",     stats:"208 wickets · avg 29.83"    },
+  { name:"Sarfraz Nawaz",        nation:"Pakistan",  decades:["1970s","1980s"],          role:"bowler",     stats:"177 wickets · avg 32.75"    },
+  { name:"Abdul Qadir",          nation:"Pakistan",  decades:["1980s","1990s"],          role:"bowler",     stats:"236 wickets · avg 32.80"    },
+  { name:"Iqbal Qasim",          nation:"Pakistan",  decades:["1970s","1980s","1990s"],  role:"bowler",     stats:"171 wickets · avg 28.11"    },
+  { name:"Mushtaq Ahmed",        nation:"Pakistan",  decades:["1990s","2000s"],          role:"bowler",     stats:"185 wickets · avg 32.97"    },
+  { name:"Naseem Shah",          nation:"Pakistan",  decades:["2010s","2020s"],          role:"bowler",     stats:"100+ wickets"                },
+  { name:"Imran Khan",           nation:"Pakistan",  decades:["1970s","1980s","1990s"],  role:"allrounder", stats:"3807 runs · 362 wickets"    },
+  { name:"Abdul Razzaq",         nation:"Pakistan",  decades:["2000s","2010s"],          role:"allrounder", stats:"1946 runs · 100 wickets"    },
+  { name:"Moin Khan",            nation:"Pakistan",  decades:["1990s","2000s"],          role:"keeper",     stats:"2741 runs · 287 dismissals" },
+  { name:"Wasim Bari",           nation:"Pakistan",  decades:["1970s","1980s"],          role:"keeper",     stats:"1366 runs · 228 dismissals" },
+  { name:"Kamran Akmal",         nation:"Pakistan",  decades:["2000s","2010s"],          role:"keeper",     stats:"2032 runs · 206 dismissals" },
+  { name:"Rashid Latif",         nation:"Pakistan",  decades:["1990s","2000s"],          role:"keeper",     stats:"1329 runs · 220 dismissals" },
+  { name:"Sarfaraz Ahmed",       nation:"Pakistan",  decades:["2010s","2020s"],          role:"keeper",     stats:"2657 runs · 200+ dismissals"},
+  // ── WEST INDIES ──
+  { name:"Brian Lara",           nation:"West Indies", decades:["1990s","2000s"],        role:"batter",     stats:"11953 runs · avg 52.88"     },
+  { name:"Viv Richards",         nation:"West Indies", decades:["1970s","1980s"],        role:"batter",     stats:"8540 runs · avg 50.23"      },
+  { name:"Gordon Greenidge",     nation:"West Indies", decades:["1970s","1980s","1990s"],role:"batter",     stats:"7558 runs · avg 44.72"      },
+  { name:"Desmond Haynes",       nation:"West Indies", decades:["1970s","1980s","1990s"],role:"batter",     stats:"7487 runs · avg 42.29"      },
+  { name:"Clive Lloyd",          nation:"West Indies", decades:["1970s","1980s"],        role:"batter",     stats:"7515 runs · avg 46.67"      },
+  { name:"Rohan Kanhai",         nation:"West Indies", decades:["1970s"],               role:"batter",     stats:"6227 runs · avg 47.53"      },
+  { name:"Shivnarine Chanderpaul",nation:"West Indies",decades:["1990s","2000s","2010s"],role:"batter",    stats:"11867 runs · avg 51.37"     },
+  { name:"Alvin Kallicharran",   nation:"West Indies", decades:["1970s","1980s"],        role:"batter",     stats:"4399 runs · avg 44.43"      },
+  { name:"Lawrence Rowe",        nation:"West Indies", decades:["1970s","1980s"],        role:"batter",     stats:"2047 runs · avg 35.03"      },
+  { name:"Roy Fredericks",       nation:"West Indies", decades:["1970s"],               role:"batter",     stats:"1427 runs · avg 32.43"      },
+  { name:"Larry Gomes",          nation:"West Indies", decades:["1970s","1980s","1990s"],role:"batter",    stats:"3171 runs · avg 43.43"      },
+  { name:"Richie Richardson",    nation:"West Indies", decades:["1980s","1990s"],        role:"batter",     stats:"5949 runs · avg 44.39"      },
+  { name:"Jimmy Adams",          nation:"West Indies", decades:["1990s","2000s"],        role:"batter",     stats:"3012 runs · avg 41.26"      },
+  { name:"Chris Gayle",          nation:"West Indies", decades:["2000s","2010s","2020s"],role:"batter",    stats:"7214 runs · avg 42.18"      },
+  { name:"Ramnaresh Sarwan",     nation:"West Indies", decades:["2000s","2010s"],        role:"batter",     stats:"5842 runs · avg 40.01"      },
+  { name:"Marlon Samuels",       nation:"West Indies", decades:["2000s","2010s"],        role:"batter",     stats:"3996 runs · avg 35.04"      },
+  { name:"Wavell Hinds",         nation:"West Indies", decades:["2000s"],               role:"batter",     stats:"1547 runs · avg 26.67"      },
+  { name:"Garfield Sobers",      nation:"West Indies", decades:["1970s"],               role:"allrounder", stats:"8032 runs · 235 wickets"    },
+  { name:"Carl Hooper",          nation:"West Indies", decades:["1980s","1990s","2000s"],role:"allrounder", stats:"5762 runs · 114 wickets"   },
+  { name:"Jason Holder",         nation:"West Indies", decades:["2010s","2020s"],        role:"allrounder", stats:"2500+ runs · 150+ wickets"  },
+  { name:"Darren Sammy",         nation:"West Indies", decades:["2000s","2010s"],        role:"allrounder", stats:"1323 runs · 85 wickets"     },
+  { name:"Malcolm Marshall",     nation:"West Indies", decades:["1970s","1980s","1990s"],role:"bowler",    stats:"376 wickets · avg 20.94"    },
+  { name:"Michael Holding",      nation:"West Indies", decades:["1970s","1980s"],        role:"bowler",     stats:"249 wickets · avg 23.68"    },
+  { name:"Joel Garner",          nation:"West Indies", decades:["1970s","1980s"],        role:"bowler",     stats:"259 wickets · avg 20.97"    },
+  { name:"Curtly Ambrose",       nation:"West Indies", decades:["1980s","1990s","2000s"],role:"bowler",    stats:"405 wickets · avg 20.99"    },
+  { name:"Courtney Walsh",       nation:"West Indies", decades:["1980s","1990s","2000s"],role:"bowler",    stats:"519 wickets · avg 24.44"    },
+  { name:"Lance Gibbs",          nation:"West Indies", decades:["1970s"],               role:"bowler",     stats:"309 wickets · avg 29.09"    },
+  { name:"Andy Roberts",         nation:"West Indies", decades:["1970s","1980s"],        role:"bowler",     stats:"202 wickets · avg 25.61"    },
+  { name:"Colin Croft",          nation:"West Indies", decades:["1970s","1980s"],        role:"bowler",     stats:"125 wickets · avg 23.30"    },
+  { name:"Ian Bishop",           nation:"West Indies", decades:["1990s","2000s"],        role:"bowler",     stats:"161 wickets · avg 24.27"    },
+  { name:"Patrick Patterson",    nation:"West Indies", decades:["1980s","1990s"],        role:"bowler",     stats:"93 wickets · avg 30.90"     },
+  { name:"Winston Davis",        nation:"West Indies", decades:["1980s"],               role:"bowler",     stats:"45 wickets · avg 29.84"     },
+  { name:"Kemar Roach",          nation:"West Indies", decades:["2010s","2020s"],        role:"bowler",     stats:"230+ wickets"                },
+  { name:"Shannon Gabriel",      nation:"West Indies", decades:["2010s","2020s"],        role:"bowler",     stats:"170+ wickets"                },
+  { name:"Fidel Edwards",        nation:"West Indies", decades:["2000s","2010s"],        role:"bowler",     stats:"165 wickets · avg 37.87"    },
+  { name:"Roger Harper",         nation:"West Indies", decades:["1980s","1990s"],        role:"allrounder", stats:"535 runs · 46 wickets"      },
+  { name:"Jeff Dujon",           nation:"West Indies", decades:["1980s","1990s"],        role:"keeper",     stats:"3322 runs · 272 dismissals" },
+  { name:"Deryck Murray",        nation:"West Indies", decades:["1970s","1980s"],        role:"keeper",     stats:"1993 runs · 189 dismissals" },
+  { name:"Ridley Jacobs",        nation:"West Indies", decades:["1990s","2000s"],        role:"keeper",     stats:"1682 runs · 207 dismissals" },
+  { name:"Denesh Ramdin",        nation:"West Indies", decades:["2000s","2010s"],        role:"keeper",     stats:"2898 runs · 205 dismissals" },
+  // ── SOUTH AFRICA ──
+  { name:"Jacques Kallis",       nation:"South Africa", decades:["1990s","2000s","2010s"], role:"allrounder", stats:"13289 runs · 292 wickets"  },
+  { name:"Graeme Smith",         nation:"South Africa", decades:["2000s","2010s"],          role:"batter",     stats:"9265 runs · avg 48.25"    },
+  { name:"Hashim Amla",          nation:"South Africa", decades:["2000s","2010s"],          role:"batter",     stats:"9282 runs · avg 46.64"    },
+  { name:"AB de Villiers",       nation:"South Africa", decades:["2000s","2010s"],          role:"batter",     stats:"8765 runs · avg 50.66"    },
+  { name:"Faf du Plessis",       nation:"South Africa", decades:["2010s","2020s"],          role:"batter",     stats:"4163 runs · avg 40.02"    },
+  { name:"Gary Kirsten",         nation:"South Africa", decades:["1990s","2000s"],          role:"batter",     stats:"7289 runs · avg 45.27"    },
+  { name:"Herschelle Gibbs",     nation:"South Africa", decades:["1990s","2000s","2010s"],  role:"batter",     stats:"6167 runs · avg 41.95"    },
+  { name:"Andrew Hudson",        nation:"South Africa", decades:["1990s"],                  role:"batter",     stats:"1934 runs · avg 35.81"    },
+  { name:"Jonty Rhodes",         nation:"South Africa", decades:["1990s","2000s"],          role:"batter",     stats:"2532 runs · avg 35.66"    },
+  { name:"Daryll Cullinan",      nation:"South Africa", decades:["1990s","2000s"],          role:"batter",     stats:"4554 runs · avg 44.21"    },
+  { name:"Jacques Rudolph",      nation:"South Africa", decades:["2000s","2010s"],          role:"batter",     stats:"4735 runs · avg 37.30"    },
+  { name:"Temba Bavuma",         nation:"South Africa", decades:["2010s","2020s"],          role:"batter",     stats:"4000+ runs"                },
+  { name:"Aiden Markram",        nation:"South Africa", decades:["2010s","2020s"],          role:"batter",     stats:"3000+ runs"                },
+  { name:"Dean Elgar",           nation:"South Africa", decades:["2010s","2020s"],          role:"batter",     stats:"5000+ runs"                },
+  { name:"Rassie van der Dussen",nation:"South Africa", decades:["2010s","2020s"],          role:"batter",     stats:"2000+ runs"                },
+  { name:"Peter Kirsten",        nation:"South Africa", decades:["1990s","2000s"],          role:"batter",     stats:"1906 runs · avg 40.55"    },
+  { name:"Dale Steyn",           nation:"South Africa", decades:["2000s","2010s"],          role:"bowler",     stats:"439 wickets · avg 22.95"  },
+  { name:"Allan Donald",         nation:"South Africa", decades:["1990s","2000s"],          role:"bowler",     stats:"330 wickets · avg 22.25"  },
+  { name:"Makhaya Ntini",        nation:"South Africa", decades:["2000s","2010s"],          role:"bowler",     stats:"390 wickets · avg 28.82"  },
+  { name:"Kagiso Rabada",        nation:"South Africa", decades:["2010s","2020s"],          role:"bowler",     stats:"300+ wickets"              },
+  { name:"Vernon Philander",     nation:"South Africa", decades:["2010s"],                  role:"bowler",     stats:"224 wickets · avg 22.32"  },
+  { name:"Morne Morkel",         nation:"South Africa", decades:["2000s","2010s"],          role:"bowler",     stats:"309 wickets · avg 27.66"  },
+  { name:"Paul Adams",           nation:"South Africa", decades:["1990s","2000s"],          role:"bowler",     stats:"135 wickets · avg 32.87"  },
+  { name:"Pat Symcox",           nation:"South Africa", decades:["1990s","2000s"],          role:"bowler",     stats:"37 wickets · avg 34.40"   },
+  { name:"Nicky Boje",           nation:"South Africa", decades:["1990s","2000s"],          role:"bowler",     stats:"100 wickets · avg 42.60"  },
+  { name:"Shaun Pollock",        nation:"South Africa", decades:["1990s","2000s","2010s"],  role:"allrounder", stats:"3781 runs · 421 wickets"  },
+  { name:"Lance Klusener",       nation:"South Africa", decades:["1990s","2000s"],          role:"allrounder", stats:"1906 runs · 80 wickets"   },
+  { name:"Mark Boucher",         nation:"South Africa", decades:["1990s","2000s","2010s"],  role:"keeper",     stats:"5515 runs · 555 dismissals"},
+  { name:"Quinton de Kock",      nation:"South Africa", decades:["2010s","2020s"],          role:"keeper",     stats:"3300+ runs"                },
+  { name:"Dave Richardson",      nation:"South Africa", decades:["1990s","2000s"],          role:"keeper",     stats:"1067 runs · 152 dismissals"},
+  // ── NEW ZEALAND ──
+  { name:"Kane Williamson",      nation:"New Zealand", decades:["2010s","2020s"],           role:"batter",     stats:"8000+ runs"                },
+  { name:"Martin Crowe",         nation:"New Zealand", decades:["1980s","1990s"],           role:"batter",     stats:"5444 runs · avg 45.36"     },
+  { name:"Ross Taylor",          nation:"New Zealand", decades:["2000s","2010s","2020s"],   role:"batter",     stats:"7683 runs · avg 44.05"     },
+  { name:"Stephen Fleming",      nation:"New Zealand", decades:["1990s","2000s","2010s"],   role:"batter",     stats:"7172 runs · avg 40.06"     },
+  { name:"John Wright",          nation:"New Zealand", decades:["1970s","1980s","1990s"],   role:"batter",     stats:"5334 runs · avg 37.82"     },
+  { name:"Nathan Astle",         nation:"New Zealand", decades:["1990s","2000s"],           role:"batter",     stats:"4702 runs · avg 37.02"     },
+  { name:"Tom Latham",           nation:"New Zealand", decades:["2010s","2020s"],           role:"batter",     stats:"5000+ runs"                },
+  { name:"Andrew Jones",         nation:"New Zealand", decades:["1980s","1990s"],           role:"batter",     stats:"2922 runs · avg 44.27"     },
+  { name:"Glenn Turner",         nation:"New Zealand", decades:["1970s","1980s"],           role:"batter",     stats:"2991 runs · avg 44.64"     },
+  { name:"Geoff Howarth",        nation:"New Zealand", decades:["1970s","1980s"],           role:"batter",     stats:"2531 runs · avg 32.44"     },
+  { name:"Jeremy Coney",         nation:"New Zealand", decades:["1980s"],                   role:"batter",     stats:"2668 runs · avg 37.57"     },
+  { name:"Craig McMillan",       nation:"New Zealand", decades:["1990s","2000s"],           role:"allrounder", stats:"3116 runs · 37 wickets"    },
+  { name:"Scott Styris",         nation:"New Zealand", decades:["2000s","2010s"],           role:"allrounder", stats:"3235 runs · 68 wickets"    },
+  { name:"Jacob Oram",           nation:"New Zealand", decades:["2000s","2010s"],           role:"allrounder", stats:"1780 runs · 60 wickets"    },
+  { name:"Henry Nicholls",       nation:"New Zealand", decades:["2010s","2020s"],           role:"batter",     stats:"3000+ runs"                },
+  { name:"Richard Hadlee",       nation:"New Zealand", decades:["1970s","1980s","1990s"],   role:"allrounder", stats:"3124 runs · 431 wickets"   },
+  { name:"Chris Cairns",         nation:"New Zealand", decades:["1990s","2000s"],           role:"allrounder", stats:"3320 runs · 218 wickets"   },
+  { name:"Daniel Vettori",       nation:"New Zealand", decades:["2000s","2010s"],           role:"allrounder", stats:"4531 runs · 362 wickets"   },
+  { name:"Kyle Jamieson",        nation:"New Zealand", decades:["2010s","2020s"],           role:"allrounder", stats:"500+ runs · 80+ wickets"   },
+  { name:"Colin de Grandhomme",  nation:"New Zealand", decades:["2010s","2020s"],           role:"allrounder", stats:"1300+ runs · 50+ wickets"  },
+  { name:"Tim Southee",          nation:"New Zealand", decades:["2010s","2020s"],           role:"bowler",     stats:"380+ wickets"              },
+  { name:"Trent Boult",          nation:"New Zealand", decades:["2010s","2020s"],           role:"bowler",     stats:"300+ wickets"              },
+  { name:"Shane Bond",           nation:"New Zealand", decades:["2000s","2010s"],           role:"bowler",     stats:"87 wickets · avg 22.09"    },
+  { name:"Chris Martin",         nation:"New Zealand", decades:["2000s","2010s"],           role:"bowler",     stats:"233 wickets · avg 33.81"   },
+  { name:"Ewen Chatfield",       nation:"New Zealand", decades:["1970s","1980s","1990s"],   role:"bowler",     stats:"123 wickets · avg 32.17"   },
+  { name:"Neil Wagner",          nation:"New Zealand", decades:["2010s","2020s"],           role:"bowler",     stats:"260+ wickets"              },
+  { name:"Richard Collinge",     nation:"New Zealand", decades:["1970s","1980s"],           role:"bowler",     stats:"116 wickets · avg 29.25"   },
+  { name:"Dayle Hadlee",         nation:"New Zealand", decades:["1970s","1980s"],           role:"bowler",     stats:"71 wickets · avg 33.23"    },
+  { name:"Brendon McCullum",     nation:"New Zealand", decades:["2000s","2010s"],           role:"keeper",     stats:"6453 runs · 195 dismissals"},
+  { name:"Ian Smith",            nation:"New Zealand", decades:["1980s","1990s"],           role:"keeper",     stats:"1815 runs · 176 dismissals"},
+  { name:"Adam Parore",          nation:"New Zealand", decades:["1990s","2000s"],           role:"keeper",     stats:"2865 runs · 201 dismissals"},
+  { name:"BJ Watling",           nation:"New Zealand", decades:["2010s","2020s"],           role:"keeper",     stats:"3790 runs · 267 dismissals"},
+  { name:"Tom Blundell",         nation:"New Zealand", decades:["2010s","2020s"],           role:"keeper",     stats:"2000+ runs · 80+ dismissals"},
+  // ── SRI LANKA ──
+  { name:"Kumar Sangakkara",     nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"keeper",     stats:"12400 runs · avg 57.40"    },
+  { name:"Mahela Jayawardene",   nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"batter",     stats:"11814 runs · avg 49.84"    },
+  { name:"Aravinda de Silva",    nation:"Sri Lanka",  decades:["1980s","1990s","2000s"],   role:"batter",     stats:"6361 runs · avg 42.97"     },
+  { name:"Sanath Jayasuriya",    nation:"Sri Lanka",  decades:["1990s","2000s","2010s"],   role:"allrounder", stats:"6973 runs · 98 wickets"    },
+  { name:"Dimuth Karunaratne",   nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"batter",     stats:"5000+ runs"                },
+  { name:"Marvan Atapattu",      nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"batter",     stats:"5502 runs · avg 39.02"     },
+  { name:"Tillakaratne Dilshan", nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"batter",     stats:"5492 runs · avg 40.98"     },
+  { name:"Hashan Tillakaratne",  nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"batter",     stats:"4545 runs · avg 42.87"     },
+  { name:"Roshan Mahanama",      nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"batter",     stats:"3512 runs · avg 37.36"     },
+  { name:"Asanka Gurusinha",     nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"batter",     stats:"2452 runs · avg 38.31"     },
+  { name:"Russel Arnold",        nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"batter",     stats:"2446 runs · avg 40.09"     },
+  { name:"Thilan Samaraweera",   nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"batter",     stats:"5462 runs · avg 48.76"     },
+  { name:"Upul Tharanga",        nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"batter",     stats:"1869 runs · avg 24.59"     },
+  { name:"Kusal Mendis",         nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"batter",     stats:"3000+ runs"                },
+  { name:"Muttiah Muralitharan", nation:"Sri Lanka",  decades:["1990s","2000s","2010s"],   role:"bowler",     stats:"800 wickets · avg 22.72"   },
+  { name:"Chaminda Vaas",        nation:"Sri Lanka",  decades:["1990s","2000s","2010s"],   role:"bowler",     stats:"355 wickets · avg 29.58"   },
+  { name:"Lasith Malinga",       nation:"Sri Lanka",  decades:["2000s","2010s","2020s"],   role:"bowler",     stats:"101 wickets · avg 33.16"   },
+  { name:"Rangana Herath",       nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"bowler",     stats:"433 wickets · avg 28.07"   },
+  { name:"Nuwan Kulasekara",     nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"bowler",     stats:"58 wickets · avg 33.17"    },
+  { name:"Suranga Lakmal",       nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"bowler",     stats:"170+ wickets"              },
+  { name:"Akila Dananjaya",      nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"bowler",     stats:"80+ wickets"               },
+  { name:"Angelo Mathews",       nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"allrounder", stats:"7000+ runs · 50+ wickets"  },
+  { name:"Dhananjaya de Silva",  nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"allrounder", stats:"3000+ runs · 100+ wickets" },
+  { name:"Romesh Kaluwitharana", nation:"Sri Lanka",  decades:["1990s","2000s"],           role:"keeper",     stats:"1054 runs · 130 dismissals"},
+  { name:"Prasanna Jayawardene", nation:"Sri Lanka",  decades:["2000s","2010s"],           role:"keeper",     stats:"1624 runs · 153 dismissals"},
+  { name:"Dinesh Chandimal",     nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"keeper",     stats:"4000+ runs"                },
+  { name:"Niroshan Dickwella",   nation:"Sri Lanka",  decades:["2010s","2020s"],           role:"keeper",     stats:"2000+ runs"                },
+  // ── ZIMBABWE ──
+  { name:"Andy Flower",          nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"keeper",     stats:"4794 runs · avg 51.54"     },
+  { name:"Dave Houghton",        nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"keeper",     stats:"1464 runs · avg 43.05"     },
+  { name:"Grant Flower",         nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"allrounder", stats:"3457 runs · 51 wickets"    },
+  { name:"Neil Johnson",         nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"allrounder", stats:"891 runs · 44 wickets"     },
+  { name:"Murray Goodwin",       nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"batter",     stats:"1818 runs · avg 42.27"     },
+  { name:"Alistair Campbell",    nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"batter",     stats:"2858 runs · avg 31.75"     },
+  { name:"Stuart Carlisle",      nation:"Zimbabwe",   decades:["2000s"],                   role:"batter",     stats:"938 runs · avg 28.42"      },
+  { name:"Hamilton Masakadza",   nation:"Zimbabwe",   decades:["2000s","2010s"],           role:"batter",     stats:"2223 runs · avg 24.42"     },
+  { name:"Brendan Taylor",       nation:"Zimbabwe",   decades:["2000s","2010s","2020s"],   role:"batter",     stats:"2320 runs · avg 33.62"     },
+  { name:"Heath Streak",         nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"bowler",     stats:"216 wickets · avg 28.14"   },
+  { name:"Paul Strang",          nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"bowler",     stats:"70 wickets · avg 42.20"    },
+  { name:"Guy Whittall",         nation:"Zimbabwe",   decades:["1990s","2000s"],           role:"allrounder", stats:"2207 runs · 74 wickets"    },
+  { name:"Elton Chigumbura",     nation:"Zimbabwe",   decades:["2000s","2010s"],           role:"allrounder", stats:"1399 runs · 67 wickets"    },
+  { name:"Sikandar Raza",        nation:"Zimbabwe",   decades:["2010s","2020s"],           role:"allrounder", stats:"2000+ runs · 80+ wickets"  },
+  { name:"Sean Williams",        nation:"Zimbabwe",   decades:["2010s","2020s"],           role:"allrounder", stats:"2000+ runs · 100+ wickets" },
+  { name:"Tatenda Taibu",        nation:"Zimbabwe",   decades:["2000s"],                   role:"keeper",     stats:"1546 runs · 100 dismissals"},
+  { name:"Blessing Muzarabani",  nation:"Zimbabwe",   decades:["2010s","2020s"],           role:"bowler",     stats:"60+ wickets"               },
+  // ── BANGLADESH ──
+  { name:"Shakib Al Hasan",      nation:"Bangladesh", decades:["2000s","2010s","2020s"],   role:"allrounder", stats:"4500+ runs · 200+ wickets" },
+  { name:"Tamim Iqbal",          nation:"Bangladesh", decades:["2000s","2010s","2020s"],   role:"batter",     stats:"5000+ runs"                },
+  { name:"Mushfiqur Rahim",      nation:"Bangladesh", decades:["2000s","2010s","2020s"],   role:"keeper",     stats:"5000+ runs"                },
+  { name:"Mominul Haque",        nation:"Bangladesh", decades:["2010s","2020s"],           role:"batter",     stats:"3000+ runs"                },
+  { name:"Litton Das",           nation:"Bangladesh", decades:["2010s","2020s"],           role:"keeper",     stats:"2000+ runs"                },
+  { name:"Habibul Bashar",       nation:"Bangladesh", decades:["2000s","2010s"],           role:"batter",     stats:"3026 runs · avg 30.87"     },
+  { name:"Mohammad Ashraful",    nation:"Bangladesh", decades:["2000s","2010s"],           role:"batter",     stats:"2737 runs · avg 21.21"     },
+  { name:"Mahmudullah",          nation:"Bangladesh", decades:["2000s","2010s","2020s"],   role:"allrounder", stats:"4000+ runs · 50+ wickets"  },
+  { name:"Imrul Kayes",          nation:"Bangladesh", decades:["2000s","2010s"],           role:"batter",     stats:"1877 runs · avg 21.56"     },
+  { name:"Mehidy Hasan Miraz",   nation:"Bangladesh", decades:["2010s","2020s"],           role:"bowler",     stats:"200+ wickets"              },
+  { name:"Mustafizur Rahman",    nation:"Bangladesh", decades:["2010s","2020s"],           role:"bowler",     stats:"100+ wickets"              },
+  { name:"Taskin Ahmed",         nation:"Bangladesh", decades:["2010s","2020s"],           role:"bowler",     stats:"100+ wickets"              },
+  { name:"Mashrafe Mortaza",     nation:"Bangladesh", decades:["2000s","2010s"],           role:"bowler",     stats:"78 wickets · avg 42.52"    },
+  { name:"Abdur Razzak",         nation:"Bangladesh", decades:["2000s","2010s"],           role:"bowler",     stats:"100 wickets · avg 34.90"   },
+  // ── AFGHANISTAN ──
+  { name:"Rashid Khan",          nation:"Afghanistan",decades:["2010s","2020s"],           role:"bowler",     stats:"200+ wickets"              },
+  { name:"Mohammad Nabi",        nation:"Afghanistan",decades:["2010s","2020s"],           role:"allrounder", stats:"1000+ runs · 100+ wickets" },
+  { name:"Mujeeb ur Rahman",     nation:"Afghanistan",decades:["2010s","2020s"],           role:"bowler",     stats:"100+ wickets"              },
+  { name:"Asghar Afghan",        nation:"Afghanistan",decades:["2010s","2020s"],           role:"batter",     stats:"2000+ runs"                },
+  { name:"Hashmatullah Shahidi", nation:"Afghanistan",decades:["2010s","2020s"],           role:"batter",     stats:"2000+ runs"                },
+  { name:"Ibrahim Zadran",       nation:"Afghanistan",decades:["2010s","2020s"],           role:"batter",     stats:"1000+ runs"                },
+  { name:"Rahmanullah Gurbaz",   nation:"Afghanistan",decades:["2020s"],                   role:"keeper",     stats:"500+ runs"                 },
+  { name:"Ikram Alikhil",        nation:"Afghanistan",decades:["2010s","2020s"],           role:"keeper",     stats:"1000+ runs"                },
+];
+
+const RATINGS = {
+  // Australia
+  "Greg Chappell":90,"Ricky Ponting":95,"Steve Waugh":90,"Matthew Hayden":87,
+  "Mark Taylor":82,"David Warner":85,"Michael Clarke":86,"Justin Langer":80,
+  "Mark Waugh":80,"Ian Chappell":82,"Bill Lawry":79,"Allan Border":94,
+  "Doug Walters":78,"Kim Hughes":74,"Graeme Wood":68,"Dean Jones":80,
+  "David Boon":82,"Damien Martyn":80,"Simon Katich":76,"Michael Hussey":84,
+  "Steve Smith":93,"Marnus Labuschagne":82,"Travis Head":78,"Phil Hughes":65,
+  "Shane Warne":99,"Glenn McGrath":97,"Dennis Lillee":95,"Jeff Thomson":87,
+  "Brett Lee":82,"Mitchell Starc":86,"Nathan Lyon":88,"Jason Gillespie":82,
+  "Terry Alderman":75,"Craig McDermott":78,"Merv Hughes":78,"Pat Cummins":88,
+  "Josh Hazlewood":84,"Stuart MacGill":82,"Max Walker":70,"Geoff Lawson":74,
+  "Peter Siddle":74,"Keith Miller":93,"Andrew Symonds":72,"Shane Watson":74,
+  "Cameron Green":70,"Tom Moody":65,"Adam Gilchrist":96,"Ian Healy":88,
+  "Brad Haddin":78,"Rodney Marsh":87,"Alex Carey":68,
+  // England
+  "Joe Root":94,"Alastair Cook":91,"Kevin Pietersen":88,"Graham Gooch":87,
+  "Geoff Boycott":84,"David Gower":85,"Colin Cowdrey":82,"Mike Gatting":70,
+  "Nasser Hussain":74,"Michael Atherton":78,"Tony Greig":82,"Dennis Amiss":72,
+  "Derek Randall":70,"Robin Smith":78,"Andrew Strauss":84,"Marcus Trescothick":82,
+  "Jonathan Trott":80,"Ian Bell":80,"Mark Ramprakash":65,"Zak Crawley":70,
+  "Ollie Pope":72,"James Anderson":97,"Stuart Broad":90,"Bob Willis":84,
+  "Derek Underwood":83,"John Snow":78,"Phil Tufnell":70,"Darren Gough":78,
+  "Steve Harmison":74,"Graeme Swann":82,"Monty Panesar":74,"Graham Dilley":70,
+  "Mark Wood":76,"Dominic Cork":72,"Ian Botham":95,"Andrew Flintoff":85,
+  "Ben Stokes":92,"Chris Woakes":76,"Sam Curran":70,"Alan Knott":87,
+  "Alec Stewart":85,"Jos Buttler":80,"Matt Prior":80,"Jack Russell":76,
+  "Jonny Bairstow":78,
+  // India
+  "Sachin Tendulkar":99,"Rahul Dravid":95,"Sunil Gavaskar":94,"VVS Laxman":88,
+  "Virat Kohli":92,"Rohit Sharma":80,"Sourav Ganguly":84,"GR Viswanath":82,
+  "Dilip Vengsarkar":80,"Mohammad Azharuddin":82,"Cheteshwar Pujara":82,
+  "Virender Sehwag":90,"Mohinder Amarnath":80,"Kris Srikkanth":70,"Sandip Patil":65,
+  "Navjot Sidhu":72,"Shikhar Dhawan":74,"KL Rahul":76,"Ajinkya Rahane":78,
+  "Yuvraj Singh":78,"Suresh Raina":62,"Anil Kumble":94,"Ravichandran Ashwin":93,
+  "Harbhajan Singh":83,"Zaheer Khan":80,"Jasprit Bumrah":89,"BS Chandrasekhar":83,
+  "Bishan Bedi":82,"EAS Prasanna":78,"S Venkataraghavan":72,"Javagal Srinath":82,
+  "Mohammed Shami":82,"Bhuvneshwar Kumar":72,"Umesh Yadav":72,"Irfan Pathan":70,
+  "Kapil Dev":95,"Ravi Shastri":76,"Ravindra Jadeja":86,"MS Dhoni":94,
+  "Rishabh Pant":83,"Syed Kirmani":78,"Farokh Engineer":74,"Nayan Mongia":68,
+  "Wriddhiman Saha":72,"Parthiv Patel":64,
+  // Pakistan
+  "Babar Azam":85,"Javed Miandad":93,"Inzamam-ul-Haq":89,"Zaheer Abbas":83,
+  "Mohammad Yousuf":87,"Hanif Mohammad":80,"Younis Khan":90,"Saeed Anwar":82,
+  "Majid Khan":76,"Mushtaq Mohammad":84,"Asif Iqbal":78,"Mudassar Nazar":72,
+  "Rameez Raja":68,"Aamer Sohail":68,"Ijaz Ahmed":72,"Misbah-ul-Haq":82,
+  "Azhar Ali":74,"Asad Shafiq":72,"Wasim Akram":97,"Waqar Younis":92,
+  "Shoaib Akhtar":82,"Danish Kaneria":74,"Shaheen Afridi":82,"Saqlain Mushtaq":80,
+  "Sarfraz Nawaz":72,"Abdul Qadir":88,"Iqbal Qasim":72,"Mushtaq Ahmed":74,
+  "Naseem Shah":74,"Imran Khan":96,"Abdul Razzaq":72,"Moin Khan":78,
+  "Wasim Bari":75,"Kamran Akmal":70,"Rashid Latif":68,"Sarfaraz Ahmed":74,
+  // West Indies
+  "Brian Lara":98,"Viv Richards":97,"Gordon Greenidge":88,"Desmond Haynes":84,
+  "Clive Lloyd":86,"Rohan Kanhai":82,"Shivnarine Chanderpaul":88,
+  "Alvin Kallicharran":80,"Lawrence Rowe":72,"Roy Fredericks":70,"Larry Gomes":72,
+  "Richie Richardson":82,"Jimmy Adams":72,"Chris Gayle":80,"Ramnaresh Sarwan":74,
+  "Marlon Samuels":72,"Wavell Hinds":60,"Garfield Sobers":100,"Carl Hooper":78,
+  "Jason Holder":78,"Darren Sammy":65,"Malcolm Marshall":96,"Michael Holding":93,
+  "Joel Garner":91,"Curtly Ambrose":94,"Courtney Walsh":91,"Lance Gibbs":82,
+  "Andy Roberts":84,"Colin Croft":76,"Ian Bishop":82,"Patrick Patterson":68,
+  "Winston Davis":60,"Kemar Roach":76,"Shannon Gabriel":72,"Fidel Edwards":66,
+  "Roger Harper":62,"Jeff Dujon":84,"Deryck Murray":76,"Ridley Jacobs":73,
+  "Denesh Ramdin":68,
+  // South Africa
+  "Jacques Kallis":98,"Graeme Smith":88,"Hashim Amla":88,"AB de Villiers":91,
+  "Faf du Plessis":78,"Gary Kirsten":82,"Herschelle Gibbs":80,"Andrew Hudson":65,
+  "Jonty Rhodes":72,"Daryll Cullinan":78,"Jacques Rudolph":70,"Temba Bavuma":74,
+  "Aiden Markram":76,"Dean Elgar":76,"Rassie van der Dussen":72,"Peter Kirsten":68,
+  "Dale Steyn":96,"Allan Donald":93,"Makhaya Ntini":83,"Kagiso Rabada":87,
+  "Vernon Philander":82,"Morne Morkel":82,"Paul Adams":68,"Pat Symcox":58,
+  "Nicky Boje":62,"Shaun Pollock":90,"Lance Klusener":78,"Mark Boucher":89,
+  "Quinton de Kock":80,"Dave Richardson":70,
+  // New Zealand
+  "Kane Williamson":91,"Martin Crowe":89,"Ross Taylor":85,"Stephen Fleming":80,
+  "John Wright":75,"Nathan Astle":74,"Tom Latham":75,"Andrew Jones":72,
+  "Glenn Turner":82,"Geoff Howarth":68,"Jeremy Coney":70,"Craig McMillan":70,
+  "Scott Styris":70,"Jacob Oram":70,"Henry Nicholls":72,"Richard Hadlee":96,
+  "Chris Cairns":80,"Daniel Vettori":84,"Kyle Jamieson":74,"Colin de Grandhomme":68,
+  "Tim Southee":83,"Trent Boult":83,"Shane Bond":78,"Chris Martin":72,
+  "Ewen Chatfield":65,"Neil Wagner":76,"Richard Collinge":62,"Dayle Hadlee":64,
+  "Brendon McCullum":82,"Ian Smith":73,"Adam Parore":74,"BJ Watling":80,
+  "Tom Blundell":70,
+  // Sri Lanka
+  "Kumar Sangakkara":97,"Mahela Jayawardene":93,"Aravinda de Silva":86,
+  "Sanath Jayasuriya":87,"Dimuth Karunaratne":75,"Marvan Atapattu":76,
+  "Tillakaratne Dilshan":79,"Hashan Tillakaratne":74,"Roshan Mahanama":70,
+  "Asanka Gurusinha":68,"Russel Arnold":66,"Thilan Samaraweera":76,
+  "Upul Tharanga":64,"Kusal Mendis":70,"Muttiah Muralitharan":100,
+  "Chaminda Vaas":83,"Lasith Malinga":78,"Rangana Herath":86,"Nuwan Kulasekara":64,
+  "Suranga Lakmal":66,"Akila Dananjaya":62,"Angelo Mathews":78,
+  "Dhananjaya de Silva":72,"Romesh Kaluwitharana":66,"Prasanna Jayawardene":70,
+  "Dinesh Chandimal":72,"Niroshan Dickwella":64,
+  // Zimbabwe
+  "Andy Flower":85,"Dave Houghton":70,"Grant Flower":70,"Neil Johnson":66,
+  "Murray Goodwin":68,"Alistair Campbell":65,"Stuart Carlisle":60,
+  "Hamilton Masakadza":60,"Brendan Taylor":68,"Heath Streak":74,"Paul Strang":58,
+  "Guy Whittall":62,"Elton Chigumbura":60,"Sikandar Raza":66,"Sean Williams":64,
+  "Tatenda Taibu":62,"Blessing Muzarabani":58,
+  // Bangladesh
+  "Shakib Al Hasan":85,"Tamim Iqbal":75,"Mushfiqur Rahim":74,"Mominul Haque":65,
+  "Litton Das":64,"Habibul Bashar":64,"Mohammad Ashraful":60,"Mahmudullah":68,
+  "Imrul Kayes":58,"Mehidy Hasan Miraz":68,"Mustafizur Rahman":67,"Taskin Ahmed":63,
+  "Mashrafe Mortaza":62,"Abdur Razzak":62,
+  // Afghanistan
+  "Rashid Khan":82,"Mohammad Nabi":72,"Mujeeb ur Rahman":68,"Asghar Afghan":62,
+  "Hashmatullah Shahidi":62,"Ibrahim Zadran":60,"Rahmanullah Gurbaz":60,
+  "Ikram Alikhil":58,
+};
+
+// ════════════════════════════════════════════════════════
+// PER-DECADE STATS  (overrides generic player stats)
+// ════════════════════════════════════════════════════════
+const DECADE_STATS = {
+  // ── AUSTRALIA ──
+  "Greg Chappell":     { "1970s":{ stats:"6,100 runs · avg 55.5", rating:91 }, "1980s":{ stats:"1,010 runs · avg 46.0", rating:82 } },
+  "Ricky Ponting":     { "1990s":{ stats:"4,071 runs · avg 51.7", rating:86 }, "2000s":{ stats:"7,696 runs · avg 55.0", rating:97 }, "2010s":{ stats:"1,611 runs · avg 40.6", rating:72 } },
+  "Steve Waugh":       { "1980s":{ stats:"2,204 runs · avg 32.0", rating:72 }, "1990s":{ stats:"6,108 runs · avg 56.1", rating:92 }, "2000s":{ stats:"2,615 runs · avg 53.4", rating:86 } },
+  "Matthew Hayden":    { "1990s":{ stats:"811 runs · avg 23.2",   rating:62 }, "2000s":{ stats:"7,814 runs · avg 55.5", rating:90 } },
+  "Mark Taylor":       { "1980s":{ stats:"1,219 runs · avg 36.7", rating:72 }, "1990s":{ stats:"6,306 runs · avg 46.1", rating:84 } },
+  "David Warner":      { "2010s":{ stats:"6,540 runs · avg 47.5", rating:86 }, "2020s":{ stats:"2,155 runs · avg 38.5", rating:76 } },
+  "Michael Clarke":    { "2000s":{ stats:"3,700 runs · avg 49.3", rating:82 }, "2010s":{ stats:"4,943 runs · avg 49.1", rating:88 } },
+  "Justin Langer":     { "1990s":{ stats:"2,440 runs · avg 36.9", rating:72 }, "2000s":{ stats:"5,256 runs · avg 50.5", rating:82 } },
+  "Mark Waugh":        { "1990s":{ stats:"5,800 runs · avg 43.2", rating:80 }, "2000s":{ stats:"2,229 runs · avg 38.1", rating:70 } },
+  "Allan Border":      { "1980s":{ stats:"8,027 runs · avg 51.2", rating:94 }, "1990s":{ stats:"3,147 runs · avg 48.7", rating:82 } },
+  "Doug Walters":      { "1970s":{ stats:"4,200 runs · avg 50.5", rating:78 }, "1980s":{ stats:"1,157 runs · avg 42.5", rating:68 } },
+  "Kim Hughes":        { "1970s":{ stats:"2,084 runs · avg 36.3", rating:68 }, "1980s":{ stats:"2,331 runs · avg 38.3", rating:74 } },
+  "Graeme Wood":       { "1970s":{ stats:"1,165 runs · avg 27.1", rating:60 }, "1980s":{ stats:"2,209 runs · avg 33.5", rating:68 } },
+  "Dean Jones":        { "1980s":{ stats:"1,943 runs · avg 46.5", rating:78 }, "1990s":{ stats:"1,688 runs · avg 46.6", rating:74 } },
+  "David Boon":        { "1980s":{ stats:"3,398 runs · avg 41.9", rating:78 }, "1990s":{ stats:"4,024 runs · avg 45.5", rating:84 } },
+  "Damien Martyn":     { "1990s":{ stats:"1,086 runs · avg 41.8", rating:68 }, "2000s":{ stats:"3,320 runs · avg 48.1", rating:80 } },
+  "Simon Katich":      { "2000s":{ stats:"2,684 runs · avg 44.7", rating:72 }, "2010s":{ stats:"1,504 runs · avg 45.6", rating:76 } },
+  "Michael Hussey":    { "2000s":{ stats:"3,623 runs · avg 57.5", rating:84 }, "2010s":{ stats:"2,612 runs · avg 45.8", rating:78 } },
+  "Steve Smith":       { "2010s":{ stats:"6,756 runs · avg 64.7", rating:94 }, "2020s":{ stats:"2,280 runs · avg 54.8", rating:88 } },
+  "Marnus Labuschagne":{ "2010s":{ stats:"1,104 runs · avg 51.6", rating:76 }, "2020s":{ stats:"2,480 runs · avg 56.4", rating:82 } },
+  "Travis Head":       { "2010s":{ stats:"748 runs · avg 28.8",   rating:64 }, "2020s":{ stats:"2,290 runs · avg 48.7", rating:78 } },
+  "Phil Hughes":       { "2000s":{ stats:"642 runs · avg 29.2",   rating:58 }, "2010s":{ stats:"893 runs · avg 35.0",  rating:65 } },
+  "Shane Warne":       { "1990s":{ stats:"313 wkts · avg 24.8",   rating:97 }, "2000s":{ stats:"395 wkts · avg 25.9",  rating:98 } },
+  "Glenn McGrath":     { "1990s":{ stats:"260 wkts · avg 21.3",   rating:96 }, "2000s":{ stats:"303 wkts · avg 21.9",  rating:97 } },
+  "Dennis Lillee":     { "1970s":{ stats:"238 wkts · avg 23.2",   rating:95 }, "1980s":{ stats:"117 wkts · avg 25.3",  rating:88 } },
+  "Jeff Thomson":      { "1970s":{ stats:"145 wkts · avg 25.6",   rating:87 }, "1980s":{ stats:"55 wkts · avg 32.5",   rating:70 } },
+  "Brett Lee":         { "2000s":{ stats:"268 wkts · avg 29.8",   rating:82 }, "2010s":{ stats:"42 wkts · avg 36.8",   rating:65 } },
+  "Mitchell Starc":    { "2010s":{ stats:"226 wkts · avg 27.4",   rating:86 }, "2020s":{ stats:"104 wkts · avg 26.5",  rating:82 } },
+  "Nathan Lyon":       { "2010s":{ stats:"349 wkts · avg 31.8",   rating:86 }, "2020s":{ stats:"181 wkts · avg 29.4",  rating:88 } },
+  "Jason Gillespie":   { "1990s":{ stats:"134 wkts · avg 24.7",   rating:82 }, "2000s":{ stats:"125 wkts · avg 28.0",  rating:78 } },
+  "Terry Alderman":    { "1980s":{ stats:"136 wkts · avg 25.2",   rating:75 }, "1990s":{ stats:"34 wkts · avg 34.7",   rating:60 } },
+  "Craig McDermott":   { "1980s":{ stats:"185 wkts · avg 28.5",   rating:78 }, "1990s":{ stats:"106 wkts · avg 29.0",  rating:72 } },
+  "Merv Hughes":       { "1980s":{ stats:"140 wkts · avg 26.4",   rating:78 }, "1990s":{ stats:"72 wkts · avg 31.6",   rating:68 } },
+  "Pat Cummins":       { "2010s":{ stats:"114 wkts · avg 21.6",   rating:84 }, "2020s":{ stats:"136 wkts · avg 20.2",  rating:88 } },
+  "Josh Hazlewood":    { "2010s":{ stats:"183 wkts · avg 24.8",   rating:82 }, "2020s":{ stats:"67 wkts · avg 23.1",   rating:84 } },
+  "Stuart MacGill":    { "1990s":{ stats:"87 wkts · avg 27.0",    rating:76 }, "2000s":{ stats:"121 wkts · avg 30.4",  rating:82 } },
+  "Geoff Lawson":      { "1980s":{ stats:"170 wkts · avg 30.0",   rating:74 }, "1990s":{ stats:"10 wkts · avg 40.0",   rating:56 } },
+  "Peter Siddle":      { "2000s":{ stats:"68 wkts · avg 28.5",    rating:68 }, "2010s":{ stats:"153 wkts · avg 31.2",  rating:74 } },
+  "Shane Watson":      { "2000s":{ stats:"1,487 runs · 43 wkts",  rating:68 }, "2010s":{ stats:"2,244 runs · 32 wkts", rating:74 } },
+  "Tom Moody":         { "1990s":{ stats:"822 runs · 10 wkts",    rating:60 }, "2000s":{ stats:"452 runs · 6 wkts",    rating:58 } },
+  "Adam Gilchrist":    { "1990s":{ stats:"862 runs · avg 55.0",   rating:82 }, "2000s":{ stats:"4,708 runs · avg 60.2",rating:96 }, "2010s":{ stats:"166 runs · avg 33.2",  rating:68 } },
+  "Ian Healy":         { "1980s":{ stats:"843 runs · 89 dismissals", rating:72 }, "1990s":{ stats:"3,513 runs · 306 dismissals", rating:88 }, "2000s":{ stats:"0 runs (retired 1999)", rating:60 } },
+  "Brad Haddin":       { "2000s":{ stats:"1,066 runs · 89 dismissals", rating:70 }, "2010s":{ stats:"2,200 runs · 181 dismissals", rating:78 } },
+  "Rodney Marsh":      { "1970s":{ stats:"2,593 runs · 264 dismissals", rating:87 }, "1980s":{ stats:"1,040 runs · 91 dismissals", rating:74 } },
+  // ── ENGLAND ──
+  "Joe Root":          { "2010s":{ stats:"8,208 runs · avg 48.7", rating:90 }, "2020s":{ stats:"3,800+ runs · avg 55+", rating:94 } },
+  "Alastair Cook":     { "2000s":{ stats:"2,945 runs · avg 42.7", rating:80 }, "2010s":{ stats:"9,527 runs · avg 46.2", rating:91 } },
+  "Kevin Pietersen":   { "2000s":{ stats:"4,010 runs · avg 49.5", rating:84 }, "2010s":{ stats:"4,171 runs · avg 45.0", rating:86 } },
+  "Graham Gooch":      { "1970s":{ stats:"1,460 runs · avg 31.5", rating:66 }, "1980s":{ stats:"4,510 runs · avg 42.9", rating:82 }, "1990s":{ stats:"2,930 runs · avg 51.0", rating:88 } },
+  "Geoff Boycott":     { "1970s":{ stats:"5,600 runs · avg 50.0", rating:84 }, "1980s":{ stats:"2,514 runs · avg 43.4", rating:76 } },
+  "David Gower":       { "1970s":{ stats:"1,164 runs · avg 38.8", rating:74 }, "1980s":{ stats:"6,175 runs · avg 46.5", rating:85 }, "1990s":{ stats:"892 runs · avg 36.3", rating:70 } },
+  "Mike Gatting":      { "1980s":{ stats:"3,196 runs · avg 36.6", rating:70 }, "1990s":{ stats:"1,213 runs · avg 32.8", rating:62 } },
+  "Nasser Hussain":    { "1990s":{ stats:"3,200 runs · avg 36.4", rating:70 }, "2000s":{ stats:"2,564 runs · avg 38.0", rating:74 } },
+  "Michael Atherton":  { "1990s":{ stats:"6,416 runs · avg 38.5", rating:78 }, "2000s":{ stats:"1,312 runs · avg 33.6", rating:68 } },
+  "Tony Greig":        { "1970s":{ stats:"3,403 runs · 125 wkts", rating:82 }, "1980s":{ stats:"196 runs · 16 wkts",   rating:66 } },
+  "Dennis Amiss":      { "1970s":{ stats:"3,412 runs · avg 46.3", rating:72 }, "1980s":{ stats:"200 runs · avg 22.2",  rating:58 } },
+  "Robin Smith":       { "1980s":{ stats:"912 runs · avg 45.6",   rating:72 }, "1990s":{ stats:"3,324 runs · avg 43.2", rating:78 } },
+  "Andrew Strauss":    { "2000s":{ stats:"3,612 runs · avg 40.3", rating:78 }, "2010s":{ stats:"3,425 runs · avg 41.5", rating:84 } },
+  "Marcus Trescothick":{ "2000s":{ stats:"5,825 runs · avg 43.8", rating:82 }, "2010s":{ stats:"0 runs (retired)", rating:58 } },
+  "Jonathan Trott":    { "2000s":{ stats:"1,012 runs · avg 63.3", rating:78 }, "2010s":{ stats:"2,823 runs · avg 40.9", rating:78 } },
+  "Ian Bell":          { "2000s":{ stats:"3,284 runs · avg 38.2", rating:72 }, "2010s":{ stats:"4,443 runs · avg 47.5", rating:82 } },
+  "James Anderson":    { "2000s":{ stats:"157 wkts · avg 29.5",   rating:76 }, "2010s":{ stats:"370 wkts · avg 25.0",  rating:97 }, "2020s":{ stats:"173 wkts · avg 24.2", rating:88 } },
+  "Stuart Broad":      { "2000s":{ stats:"68 wkts · avg 31.0",    rating:66 }, "2010s":{ stats:"383 wkts · avg 27.0",  rating:90 }, "2020s":{ stats:"153 wkts · avg 24.0", rating:86 } },
+  "Bob Willis":        { "1970s":{ stats:"177 wkts · avg 24.4",   rating:82 }, "1980s":{ stats:"148 wkts · avg 26.0",  rating:84 } },
+  "Derek Underwood":   { "1970s":{ stats:"224 wkts · avg 24.2",   rating:83 }, "1980s":{ stats:"73 wkts · avg 31.0",   rating:70 } },
+  "Darren Gough":      { "1990s":{ stats:"154 wkts · avg 28.0",   rating:78 }, "2000s":{ stats:"75 wkts · avg 29.0",   rating:68 } },
+  "Ian Botham":        { "1970s":{ stats:"1,184 runs · 84 wkts",  rating:84 }, "1980s":{ stats:"3,660 runs · 267 wkts",rating:95 }, "1990s":{ stats:"356 runs · 32 wkts",  rating:68 } },
+  "Andrew Flintoff":   { "2000s":{ stats:"3,228 runs · 205 wkts", rating:85 }, "2010s":{ stats:"617 runs · 21 wkts",   rating:64 } },
+  "Ben Stokes":        { "2010s":{ stats:"3,282 runs · 128 wkts", rating:88 }, "2020s":{ stats:"2,750+ runs · 80+ wkts",rating:92 } },
+  "Alan Knott":        { "1970s":{ stats:"3,846 runs · 229 dismissals", rating:87 }, "1980s":{ stats:"543 runs · 40 dismissals", rating:68 } },
+  "Alec Stewart":      { "1980s":{ stats:"612 runs · 35 dismissals", rating:62 }, "1990s":{ stats:"5,210 runs · 175 dismissals", rating:85 }, "2000s":{ stats:"2,641 runs · 67 dismissals", rating:76 } },
+  "Jonny Bairstow":    { "2010s":{ stats:"3,141 runs · 193 dismissals", rating:76 }, "2020s":{ stats:"900+ runs · 70+ dismissals", rating:78 } },
+  // ── INDIA ──
+  "Sachin Tendulkar":  { "1980s":{ stats:"215 runs · avg 26.9",   rating:60 }, "1990s":{ stats:"5,880 runs · avg 48.0", rating:93 }, "2000s":{ stats:"7,984 runs · avg 57.0", rating:99 }, "2010s":{ stats:"1,842 runs · avg 38.4", rating:80 } },
+  "Rahul Dravid":      { "1990s":{ stats:"3,596 runs · avg 55.3", rating:88 }, "2000s":{ stats:"7,601 runs · avg 56.4", rating:95 }, "2010s":{ stats:"2,091 runs · avg 40.2", rating:78 } },
+  "Sunil Gavaskar":    { "1970s":{ stats:"5,891 runs · avg 54.5", rating:94 }, "1980s":{ stats:"4,231 runs · avg 47.2", rating:88 } },
+  "VVS Laxman":        { "1990s":{ stats:"1,543 runs · avg 35.8", rating:70 }, "2000s":{ stats:"5,906 runs · avg 49.6", rating:88 }, "2010s":{ stats:"1,332 runs · avg 47.9", rating:78 } },
+  "Virat Kohli":       { "2010s":{ stats:"7,202 runs · avg 54.2", rating:92 }, "2020s":{ stats:"1,810+ runs · avg 38.5", rating:78 } },
+  "Rohit Sharma":      { "2010s":{ stats:"2,141 runs · avg 39.6", rating:74 }, "2020s":{ stats:"1,900+ runs · avg 43+", rating:80 } },
+  "Sourav Ganguly":    { "1990s":{ stats:"3,388 runs · avg 43.2", rating:80 }, "2000s":{ stats:"3,824 runs · avg 41.3", rating:84 } },
+  "GR Viswanath":      { "1970s":{ stats:"4,112 runs · avg 43.3", rating:82 }, "1980s":{ stats:"1,968 runs · avg 39.4", rating:74 } },
+  "Dilip Vengsarkar":  { "1970s":{ stats:"1,740 runs · avg 37.8", rating:68 }, "1980s":{ stats:"4,112 runs · avg 44.2", rating:80 }, "1990s":{ stats:"1,016 runs · avg 40.6", rating:68 } },
+  "Mohammad Azharuddin":{"1980s":{ stats:"1,978 runs · avg 47.9", rating:76 }, "1990s":{ stats:"3,657 runs · avg 44.6", rating:82 }, "2000s":{ stats:"580 runs · avg 34.1", rating:62 } },
+  "Anil Kumble":       { "1990s":{ stats:"274 wkts · avg 28.0",   rating:92 }, "2000s":{ stats:"292 wkts · avg 31.0",  rating:94 }, "2010s":{ stats:"53 wkts · avg 32.5",   rating:74 } },
+  "Ravichandran Ashwin":{"2010s":{ stats:"362 wkts · avg 25.0",   rating:93 }, "2020s":{ stats:"138 wkts · avg 21.8",  rating:90 } },
+  "Harbhajan Singh":   { "2000s":{ stats:"285 wkts · avg 30.2",   rating:83 }, "2010s":{ stats:"132 wkts · avg 37.8",  rating:68 } },
+  "Zaheer Khan":       { "2000s":{ stats:"218 wkts · avg 31.4",   rating:80 }, "2010s":{ stats:"93 wkts · avg 36.0",   rating:68 } },
+  "BS Chandrasekhar":  { "1970s":{ stats:"201 wkts · avg 29.2",   rating:83 }, "1980s":{ stats:"41 wkts · avg 33.0",   rating:66 } },
+  "Bishan Bedi":       { "1970s":{ stats:"210 wkts · avg 27.8",   rating:82 }, "1980s":{ stats:"56 wkts · avg 32.0",   rating:68 } },
+  "Kapil Dev":         { "1970s":{ stats:"636 runs · 64 wkts",    rating:76 }, "1980s":{ stats:"3,584 runs · 285 wkts",rating:95 }, "1990s":{ stats:"1,028 runs · 85 wkts", rating:72 } },
+  "Ravi Shastri":      { "1980s":{ stats:"2,830 runs · 121 wkts", rating:76 }, "1990s":{ stats:"1,000 runs · 30 wkts", rating:62 } },
+  "Javagal Srinath":   { "1990s":{ stats:"188 wkts · avg 29.5",   rating:82 }, "2000s":{ stats:"48 wkts · avg 34.2",   rating:66 } },
+  "MS Dhoni":          { "2000s":{ stats:"2,388 runs · 126 dismissals", rating:88 }, "2010s":{ stats:"2,488 runs · 168 dismissals", rating:94 } },
+  "Mohinder Amarnath": { "1970s":{ stats:"1,618 runs · 12 wkts",  rating:72 }, "1980s":{ stats:"2,402 runs · 18 wkts", rating:80 }, "1990s":{ stats:"358 runs · 2 wkts",   rating:58 } },
+  "Virender Sehwag":   { "2000s":{ stats:"5,839 runs · avg 53.2", rating:90 }, "2010s":{ stats:"2,747 runs · avg 43.1", rating:76 } },
+  "Ravindra Jadeja":   { "2010s":{ stats:"2,032 runs · 213 wkts", rating:84 }, "2020s":{ stats:"968 runs · 87 wkts",   rating:86 } },
+  // ── PAKISTAN ──
+  "Javed Miandad":     { "1970s":{ stats:"2,502 runs · avg 60.0", rating:88 }, "1980s":{ stats:"4,563 runs · avg 54.4", rating:94 }, "1990s":{ stats:"1,767 runs · avg 45.3", rating:76 } },
+  "Younis Khan":       { "2000s":{ stats:"4,800 runs · avg 52.2", rating:88 }, "2010s":{ stats:"5,299 runs · avg 51.9", rating:90 } },
+  "Inzamam-ul-Haq":    { "1990s":{ stats:"4,300 runs · avg 49.1", rating:86 }, "2000s":{ stats:"4,529 runs · avg 50.0", rating:88 } },
+  "Zaheer Abbas":      { "1970s":{ stats:"3,122 runs · avg 44.2", rating:80 }, "1980s":{ stats:"1,940 runs · avg 45.4", rating:82 } },
+  "Mohammad Yousuf":   { "1990s":{ stats:"1,614 runs · avg 45.0", rating:72 }, "2000s":{ stats:"5,082 runs · avg 55.2", rating:88 }, "2010s":{ stats:"834 runs · avg 46.3", rating:70 } },
+  "Saeed Anwar":       { "1990s":{ stats:"3,408 runs · avg 47.7", rating:82 }, "2000s":{ stats:"644 runs · avg 40.3",  rating:66 } },
+  "Mushtaq Mohammad":  { "1970s":{ stats:"2,916 runs · 64 wkts",  rating:84 }, "1980s":{ stats:"727 runs · 15 wkts",   rating:66 } },
+  "Wasim Akram":       { "1980s":{ stats:"148 wkts · avg 23.3",   rating:86 }, "1990s":{ stats:"211 wkts · avg 22.9",  rating:96 }, "2000s":{ stats:"55 wkts · avg 27.3",   rating:72 } },
+  "Waqar Younis":      { "1990s":{ stats:"255 wkts · avg 21.5",   rating:93 }, "2000s":{ stats:"118 wkts · avg 27.0",  rating:78 } },
+  "Abdul Qadir":       { "1980s":{ stats:"210 wkts · avg 30.1",   rating:88 }, "1990s":{ stats:"26 wkts · avg 43.0",   rating:60 } },
+  "Imran Khan":        { "1970s":{ stats:"1,048 runs · 136 wkts", rating:84 }, "1980s":{ stats:"2,404 runs · 205 wkts",rating:96 }, "1990s":{ stats:"355 runs · 21 wkts",   rating:64 } },
+  "Mudassar Nazar":    { "1970s":{ stats:"1,560 runs · 18 wkts",  rating:66 }, "1980s":{ stats:"2,194 runs · 44 wkts", rating:72 }, "1990s":{ stats:"360 runs · 4 wkts",    rating:56 } },
+  "Misbah-ul-Haq":     { "2000s":{ stats:"1,408 runs · avg 42.7", rating:68 }, "2010s":{ stats:"3,814 runs · avg 48.8", rating:82 } },
+  "Azhar Ali":         { "2010s":{ stats:"5,012 runs · avg 41.8", rating:74 }, "2020s":{ stats:"2,020 runs · avg 38.5", rating:68 } },
+  "Sarfraz Nawaz":     { "1970s":{ stats:"120 wkts · avg 30.2",   rating:72 }, "1980s":{ stats:"57 wkts · avg 37.0",   rating:64 } },
+  "Saqlain Mushtaq":   { "1990s":{ stats:"137 wkts · avg 27.5",   rating:80 }, "2000s":{ stats:"71 wkts · avg 33.6",   rating:72 } },
+  "Mushtaq Ahmed":     { "1990s":{ stats:"152 wkts · avg 30.8",   rating:74 }, "2000s":{ stats:"33 wkts · avg 38.5",   rating:60 } },
+  "Moin Khan":         { "1990s":{ stats:"1,848 runs · 192 dismissals", rating:78 }, "2000s":{ stats:"893 runs · 95 dismissals", rating:70 } },
+  "Kamran Akmal":      { "2000s":{ stats:"1,328 runs · 128 dismissals", rating:70 }, "2010s":{ stats:"704 runs · 78 dismissals", rating:62 } },
+  "Rashid Latif":      { "1990s":{ stats:"978 runs · 152 dismissals", rating:68 }, "2000s":{ stats:"351 runs · 68 dismissals", rating:60 } },
+  // ── WEST INDIES ──
+  "Brian Lara":        { "1990s":{ stats:"5,820 runs · avg 49.3", rating:96 }, "2000s":{ stats:"6,133 runs · avg 56.1", rating:98 } },
+  "Viv Richards":      { "1970s":{ stats:"3,798 runs · avg 53.5", rating:96 }, "1980s":{ stats:"4,742 runs · avg 47.9", rating:94 } },
+  "Gordon Greenidge":  { "1970s":{ stats:"2,841 runs · avg 44.4", rating:82 }, "1980s":{ stats:"3,812 runs · avg 47.0", rating:88 }, "1990s":{ stats:"905 runs · avg 36.2", rating:68 } },
+  "Desmond Haynes":    { "1970s":{ stats:"1,700 runs · avg 34.0", rating:68 }, "1980s":{ stats:"4,400 runs · avg 45.8", rating:84 }, "1990s":{ stats:"1,387 runs · avg 42.0", rating:74 } },
+  "Clive Lloyd":       { "1970s":{ stats:"4,830 runs · avg 48.5", rating:86 }, "1980s":{ stats:"2,685 runs · avg 43.3", rating:78 } },
+  "Shivnarine Chanderpaul":{ "1990s":{ stats:"3,400 runs · avg 47.2", rating:80 }, "2000s":{ stats:"5,100 runs · avg 54.8", rating:88 }, "2010s":{ stats:"3,367 runs · avg 50.7", rating:82 } },
+  "Richie Richardson": { "1980s":{ stats:"2,178 runs · avg 44.4", rating:74 }, "1990s":{ stats:"3,771 runs · avg 44.3", rating:82 } },
+  "Carl Hooper":       { "1980s":{ stats:"482 runs · 12 wkts",    rating:60 }, "1990s":{ stats:"3,840 runs · 74 wkts", rating:78 }, "2000s":{ stats:"1,440 runs · 28 wkts", rating:70 } },
+  "Courtney Walsh":    { "1980s":{ stats:"69 wkts · avg 25.7",    rating:70 }, "1990s":{ stats:"347 wkts · avg 23.5",  rating:91 }, "2000s":{ stats:"103 wkts · avg 26.6",  rating:76 } },
+  "Malcolm Marshall":  { "1970s":{ stats:"40 wkts · avg 22.5",    rating:78 }, "1980s":{ stats:"281 wkts · avg 20.2",  rating:97 }, "1990s":{ stats:"55 wkts · avg 22.8",   rating:80 } },
+  "Curtly Ambrose":    { "1980s":{ stats:"24 wkts · avg 18.2",    rating:74 }, "1990s":{ stats:"298 wkts · avg 20.3",  rating:95 }, "2000s":{ stats:"83 wkts · avg 22.8",   rating:80 } },
+  "Andy Roberts":      { "1970s":{ stats:"172 wkts · avg 24.6",   rating:84 }, "1980s":{ stats:"30 wkts · avg 31.0",   rating:64 } },
+  "Jeff Dujon":        { "1980s":{ stats:"2,792 runs · 223 dismissals", rating:84 }, "1990s":{ stats:"530 runs · 49 dismissals", rating:68 } },
+  "Deryck Murray":     { "1970s":{ stats:"1,590 runs · 158 dismissals", rating:76 }, "1980s":{ stats:"403 runs · 31 dismissals", rating:62 } },
+  "Ridley Jacobs":     { "1990s":{ stats:"622 runs · 78 dismissals", rating:66 }, "2000s":{ stats:"1,060 runs · 129 dismissals", rating:73 } },
+  "Ramnaresh Sarwan":  { "2000s":{ stats:"4,584 runs · avg 41.7", rating:74 }, "2010s":{ stats:"1,258 runs · avg 34.9", rating:62 } },
+  "Chris Gayle":       { "2000s":{ stats:"4,466 runs · avg 42.9", rating:78 }, "2010s":{ stats:"2,418 runs · avg 40.6", rating:74 }, "2020s":{ stats:"330 runs · avg 27.5", rating:56 } },
+  "Garfield Sobers":   { "1970s":{ stats:"8,032 runs · 235 wkts", rating:100 } },
+  // ── SOUTH AFRICA ──
+  "Jacques Kallis":    { "1990s":{ stats:"3,214 runs · 87 wkts",  rating:88 }, "2000s":{ stats:"6,800 runs · 145 wkts",rating:98 }, "2010s":{ stats:"3,275 runs · 60 wkts", rating:86 } },
+  "Graeme Smith":      { "2000s":{ stats:"5,612 runs · avg 49.3", rating:86 }, "2010s":{ stats:"3,653 runs · avg 47.0", rating:88 } },
+  "Hashim Amla":       { "2000s":{ stats:"2,860 runs · avg 48.5", rating:78 }, "2010s":{ stats:"6,422 runs · avg 46.4", rating:88 } },
+  "AB de Villiers":    { "2000s":{ stats:"2,968 runs · avg 46.4", rating:80 }, "2010s":{ stats:"5,797 runs · avg 53.8", rating:91 } },
+  "Gary Kirsten":      { "1990s":{ stats:"3,967 runs · avg 43.5", rating:78 }, "2000s":{ stats:"3,322 runs · avg 47.8", rating:82 } },
+  "Herschelle Gibbs":  { "1990s":{ stats:"1,488 runs · avg 39.2", rating:68 }, "2000s":{ stats:"4,304 runs · avg 42.4", rating:80 }, "2010s":{ stats:"375 runs · avg 31.3", rating:58 } },
+  "Jonty Rhodes":      { "1990s":{ stats:"1,920 runs · avg 37.6", rating:72 }, "2000s":{ stats:"612 runs · avg 30.6",  rating:62 } },
+  "Daryll Cullinan":   { "1990s":{ stats:"3,622 runs · avg 45.3", rating:78 }, "2000s":{ stats:"932 runs · avg 41.3",  rating:68 } },
+  "Dale Steyn":        { "2000s":{ stats:"212 wkts · avg 22.2",   rating:90 }, "2010s":{ stats:"227 wkts · avg 23.7",  rating:93 } },
+  "Allan Donald":      { "1990s":{ stats:"272 wkts · avg 21.8",   rating:93 }, "2000s":{ stats:"58 wkts · avg 23.6",   rating:72 } },
+  "Makhaya Ntini":     { "2000s":{ stats:"286 wkts · avg 28.1",   rating:83 }, "2010s":{ stats:"104 wkts · avg 30.4",  rating:72 } },
+  "Shaun Pollock":     { "1990s":{ stats:"1,208 runs · 149 wkts", rating:84 }, "2000s":{ stats:"2,012 runs · 224 wkts",rating:90 }, "2010s":{ stats:"561 runs · 48 wkts",  rating:72 } },
+  "Mark Boucher":      { "1990s":{ stats:"1,602 runs · 170 dismissals", rating:78 }, "2000s":{ stats:"3,104 runs · 299 dismissals", rating:89 }, "2010s":{ stats:"809 runs · 86 dismissals", rating:72 } },
+  "Morne Morkel":      { "2000s":{ stats:"78 wkts · avg 28.0",    rating:70 }, "2010s":{ stats:"231 wkts · avg 27.9",  rating:82 } },
+  // ── NEW ZEALAND ──
+  "Richard Hadlee":    { "1970s":{ stats:"643 runs · 97 wkts",    rating:74 }, "1980s":{ stats:"2,249 runs · 300 wkts",rating:96 }, "1990s":{ stats:"232 runs · 34 wkts",   rating:70 } },
+  "Martin Crowe":      { "1980s":{ stats:"2,952 runs · avg 42.8", rating:82 }, "1990s":{ stats:"2,492 runs · avg 48.7", rating:89 } },
+  "Ross Taylor":       { "2000s":{ stats:"2,198 runs · avg 44.9", rating:76 }, "2010s":{ stats:"4,314 runs · avg 45.4", rating:85 }, "2020s":{ stats:"1,171 runs · avg 40.4", rating:74 } },
+  "Stephen Fleming":   { "1990s":{ stats:"2,802 runs · avg 37.4", rating:72 }, "2000s":{ stats:"3,834 runs · avg 42.4", rating:80 }, "2010s":{ stats:"536 runs · avg 34.9",  rating:62 } },
+  "John Wright":       { "1970s":{ stats:"824 runs · avg 28.4",   rating:62 }, "1980s":{ stats:"3,614 runs · avg 38.3", rating:75 }, "1990s":{ stats:"896 runs · avg 37.3",  rating:68 } },
+  "Daniel Vettori":    { "2000s":{ stats:"2,748 runs · 225 wkts", rating:80 }, "2010s":{ stats:"1,783 runs · 137 wkts",rating:82 } },
+  "Chris Cairns":      { "1990s":{ stats:"1,842 runs · 120 wkts", rating:76 }, "2000s":{ stats:"1,478 runs · 98 wkts", rating:80 } },
+  "Tim Southee":       { "2010s":{ stats:"270 wkts · avg 28.2",   rating:80 }, "2020s":{ stats:"110 wkts · avg 27.4",  rating:83 } },
+  "Trent Boult":       { "2010s":{ stats:"231 wkts · avg 27.7",   rating:82 }, "2020s":{ stats:"72 wkts · avg 26.1",   rating:76 } },
+  "Brendon McCullum":  { "2000s":{ stats:"2,420 runs · 112 dismissals", rating:72 }, "2010s":{ stats:"4,033 runs · 83 dismissals", rating:82 } },
+  "BJ Watling":        { "2010s":{ stats:"3,320 runs · 236 dismissals", rating:80 }, "2020s":{ stats:"470 runs · 31 dismissals", rating:68 } },
+  "Nathan Astle":      { "1990s":{ stats:"2,482 runs · avg 36.4", rating:68 }, "2000s":{ stats:"2,220 runs · avg 37.7", rating:74 } },
+  // ── SRI LANKA ──
+  "Kumar Sangakkara":  { "2000s":{ stats:"4,700 runs · avg 53.5", rating:90 }, "2010s":{ stats:"7,700 runs · avg 62.1", rating:97 } },
+  "Mahela Jayawardene":{ "2000s":{ stats:"6,100 runs · avg 49.0", rating:90 }, "2010s":{ stats:"5,714 runs · avg 50.8", rating:92 } },
+  "Aravinda de Silva": { "1980s":{ stats:"572 runs · avg 22.0",   rating:62 }, "1990s":{ stats:"4,820 runs · avg 45.1", rating:86 }, "2000s":{ stats:"969 runs · avg 43.1", rating:72 } },
+  "Sanath Jayasuriya": { "1990s":{ stats:"3,244 runs · 52 wkts",  rating:82 }, "2000s":{ stats:"3,212 runs · 40 wkts", rating:84 }, "2010s":{ stats:"517 runs · 6 wkts",   rating:58 } },
+  "Chaminda Vaas":     { "1990s":{ stats:"174 wkts · avg 28.4",   rating:78 }, "2000s":{ stats:"153 wkts · avg 30.8",  rating:80 }, "2010s":{ stats:"28 wkts · avg 32.5",   rating:60 } },
+  "Muttiah Muralitharan":{ "1990s":{ stats:"242 wkts · avg 23.4", rating:96 }, "2000s":{ stats:"447 wkts · avg 21.5",  rating:100 }, "2010s":{ stats:"111 wkts · avg 25.4", rating:84 } },
+  "Rangana Herath":    { "2000s":{ stats:"112 wkts · avg 31.4",   rating:74 }, "2010s":{ stats:"321 wkts · avg 27.1",  rating:86 } },
+  "Angelo Mathews":    { "2010s":{ stats:"5,042 runs · 44 wkts",  rating:78 }, "2020s":{ stats:"1,980 runs · 8 wkts",  rating:72 } },
+  "Hashan Tillakaratne":{"1990s":{ stats:"3,021 runs · avg 43.2", rating:72 }, "2000s":{ stats:"1,524 runs · avg 41.7", rating:70 } },
+  "Thilan Samaraweera":{ "2000s":{ stats:"2,841 runs · avg 52.0", rating:72 }, "2010s":{ stats:"2,621 runs · avg 46.1", rating:76 } },
+  // ── ZIMBABWE ──
+  "Andy Flower":       { "1990s":{ stats:"2,576 runs · avg 52.6", rating:84 }, "2000s":{ stats:"2,218 runs · avg 50.4", rating:85 } },
+  "Heath Streak":      { "1990s":{ stats:"124 wkts · avg 25.3",   rating:72 }, "2000s":{ stats:"92 wkts · avg 31.4",   rating:68 } },
+  "Grant Flower":      { "1990s":{ stats:"1,848 runs · 34 wkts",  rating:66 }, "2000s":{ stats:"1,609 runs · 17 wkts", rating:68 } },
+  "Sikandar Raza":     { "2010s":{ stats:"1,102 runs · 42 wkts",  rating:62 }, "2020s":{ stats:"900+ runs · 40+ wkts", rating:66 } },
+  "Brendan Taylor":    { "2000s":{ stats:"624 runs · avg 28.4",   rating:58 }, "2010s":{ stats:"1,473 runs · avg 34.8", rating:68 }, "2020s":{ stats:"223 runs · avg 37.2",  rating:60 } },
+  // ── BANGLADESH ──
+  "Shakib Al Hasan":   { "2000s":{ stats:"1,242 runs · 73 wkts",  rating:70 }, "2010s":{ stats:"2,812 runs · 135 wkts",rating:85 }, "2020s":{ stats:"450+ runs · 30+ wkts", rating:72 } },
+  "Tamim Iqbal":       { "2000s":{ stats:"684 runs · avg 24.4",   rating:58 }, "2010s":{ stats:"3,714 runs · avg 38.4", rating:75 }, "2020s":{ stats:"602 runs · avg 40.1",  rating:68 } },
+  "Mushfiqur Rahim":   { "2000s":{ stats:"1,188 runs · 74 dismissals", rating:60 }, "2010s":{ stats:"3,080 runs · 154 dismissals", rating:74 }, "2020s":{ stats:"732 runs · 42 dismissals", rating:66 } },
+  "Habibul Bashar":    { "2000s":{ stats:"2,620 runs · avg 31.4", rating:64 }, "2010s":{ stats:"406 runs · avg 23.9",  rating:52 } },
+  "Mahmudullah":       { "2000s":{ stats:"642 runs · 21 wkts",    rating:56 }, "2010s":{ stats:"2,464 runs · 29 wkts", rating:68 }, "2020s":{ stats:"894 runs · 9 wkts",    rating:60 } },
+  "Mashrafe Mortaza":  { "2000s":{ stats:"46 wkts · avg 37.2",    rating:58 }, "2010s":{ stats:"32 wkts · avg 49.4",   rating:56 } },
+  "Mehidy Hasan Miraz":{ "2010s":{ stats:"124 wkts · avg 31.0",   rating:64 }, "2020s":{ stats:"76 wkts · avg 28.4",   rating:68 } },
+  // ── AFGHANISTAN ──
+  "Rashid Khan":       { "2010s":{ stats:"102 wkts · avg 17.2",   rating:80 }, "2020s":{ stats:"98 wkts · avg 15.8",   rating:82 } },
+  "Mohammad Nabi":     { "2010s":{ stats:"740 runs · 78 wkts",    rating:70 }, "2020s":{ stats:"260 runs · 28 wkts",   rating:68 } },
+};
+
+// ════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════
+const NATIONS = ["Australia","England","India","Pakistan","West Indies","South Africa","New Zealand","Sri Lanka","Bangladesh","Zimbabwe","Afghanistan"];
+const DECADES_BY_NATION = {
+  "Australia":    ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "England":      ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "India":        ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "Pakistan":     ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "West Indies":  ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "South Africa": ["1990s","2000s","2010s","2020s"],
+  "New Zealand":  ["1970s","1980s","1990s","2000s","2010s","2020s"],
+  "Sri Lanka":    ["1980s","1990s","2000s","2010s","2020s"],
+  "Bangladesh":   ["2000s","2010s","2020s"],
+  "Zimbabwe":     ["1990s","2000s","2010s","2020s"],
+  "Afghanistan":  ["2010s","2020s"],
+};
+const ALL_DECADES = ["1970s","1980s","1990s","2000s","2010s","2020s"];
+const SLOTS = [
+  { id:"batter1",    role:"batter",     label:"Batter #1"     },
+  { id:"batter2",    role:"batter",     label:"Batter #2"     },
+  { id:"bowler1",    role:"bowler",     label:"Bowler #1"     },
+  { id:"bowler2",    role:"bowler",     label:"Bowler #2"     },
+  { id:"allrounder", role:"allrounder", label:"All-Rounder"   },
+  { id:"keeper",     role:"keeper",     label:"Wicket-Keeper" },
+];
+const ROLE_LABEL = { batter:"Batter", bowler:"Bowler", allrounder:"All-Rounder", keeper:"Wicket-Keeper" };
+const ROLE_SHORT = { batter:"BAT", bowler:"BWL", allrounder:"AR", keeper:"WK" };
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let selections       = {};   // slotId → player
+let currentNation    = "";
+let currentDecade    = "";
+let spinning         = false;
+let gameOver         = false;
+let reSpinDecadeUsed = false;
+let reSpinNationUsed = false;
+let selectedPlayer   = null; // player clicked in list, waiting to be placed
+let moveSource       = null; // slotId of filled position selected for rearranging
+
+// ════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════
+function canAcceptPlayer(playerRole, slotRole) {
+  if (slotRole === playerRole) return true;
+  if (playerRole === 'allrounder' && (slotRole === 'batter' || slotRole === 'bowler')) return true;
+  return false;
+}
+function emptySlots() { return SLOTS.filter(s => !selections[s.id]); }
+function availablePlayers() {
+  const empty = emptySlots();
+  const usedNames = new Set(Object.values(selections).map(p => p.name));
+  return PLAYERS.filter(p =>
+    p.nation === currentNation &&
+    p.decades.includes(currentDecade) &&
+    !usedNames.has(p.name) &&
+    empty.some(s => canAcceptPlayer(p.role, s.role))
+  );
+}
+function firstCompatibleEmptySlot(playerRole) {
+  return SLOTS.find(s => !selections[s.id] && canAcceptPlayer(playerRole, s.role));
+}
+function getValidCombo() {
+  const empty = emptySlots();
+  const valid = [];
+  NATIONS.forEach(n => {
+    (DECADES_BY_NATION[n] || []).forEach(d => {
+      if (empty.some(slot => PLAYERS.some(p => p.nation===n && p.decades.includes(d) && canAcceptPlayer(p.role, slot.role))))
+        valid.push({ nation:n, decade:d });
+    });
+  });
+  return valid[Math.floor(Math.random() * valid.length)];
+}
+function getValidDecadeForNation(nation) {
+  const empty = emptySlots();
+  const valid = (DECADES_BY_NATION[nation] || []).filter(d =>
+    empty.some(slot => PLAYERS.some(p => p.nation===nation && p.decades.includes(d) && canAcceptPlayer(p.role, slot.role)))
+  );
+  return valid.length ? valid[Math.floor(Math.random() * valid.length)] : null;
+}
+// Returns { stats, rating } for a player in a specific decade.
+function getDecadeData(player, decade) {
+  const ds = DECADE_STATS[player.name];
+  if (ds && ds[decade]) return ds[decade];
+  return { stats: player.stats || "", rating: RATINGS[player.name] || 60 };
+}
+function getRating(player) {
+  return getDecadeData(player, player._decade || player.decades[0]).rating;
+}
+function getInitials(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return name.slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
+
+// ════════════════════════════════════════════════════════
+// FIELD RENDERING
+// ════════════════════════════════════════════════════════
+function getPos(slotId) { return document.getElementById('fpos-' + slotId); }
+
+function updateField() {
+  const pending = selectedPlayer;
+
+  let total = 0;
+  SLOTS.forEach(slot => {
+    const el     = getPos(slot.id);
+    const player = selections[slot.id];
+    const initEl = document.getElementById('finit-' + slot.id);
+    const roleEl = document.getElementById('frole-' + slot.id);
+
+    // Remove all state classes
+    el.classList.remove('filled','available','valid-target','invalid-target','move-source');
+
+    if (player) {
+      // Slot is filled
+      total += getRating(player);
+      el.classList.add('filled');
+      initEl.textContent = getInitials(player.name);
+      roleEl.textContent = ROLE_SHORT[player.role] || '';
+      if (moveSource === slot.id) el.classList.add('move-source');
+    } else {
+      // Slot is empty
+      initEl.textContent = '';
+      roleEl.textContent = '';
+
+      if (pending) {
+        // Show which slots this player can fill
+        if (canAcceptPlayer(pending.role, slot.role)) {
+          el.classList.add('valid-target');
+        } else {
+          el.classList.add('invalid-target');
+        }
+      } else if (moveSource) {
+        // Rearranging: show where the held player can go
+        const srcPlayer = selections[moveSource];
+        if (srcPlayer && canAcceptPlayer(srcPlayer.role, slot.role)) {
+          el.classList.add('valid-target');
+        } else {
+          el.classList.add('invalid-target');
+        }
+      } else if (!spinning && currentNation) {
+        // No selection active: highlight slots the current spin can fill
+        const hasPlayer = PLAYERS.some(p =>
+          p.nation===currentNation && p.decades.includes(currentDecade) && canAcceptPlayer(p.role, slot.role)
+        );
+        if (hasPlayer) el.classList.add('available');
+      }
+    }
+  });
+
+  if (Object.keys(selections).length > 0) {
+    document.getElementById('score-strip').style.display = 'block';
+    document.getElementById('running-score').textContent = total;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// CLICK INTERACTIONS
+// ════════════════════════════════════════════════════════
+
+// Click on player card in list
+function onPlayerCardClick(playerName) {
+  if (spinning || gameOver) return;
+  const player = PLAYERS.find(p => p.name === playerName);
+  if (!player) return;
+
+  if (selectedPlayer && selectedPlayer.name === playerName) {
+    // Deselect
+    selectedPlayer = null;
+    moveSource = null;
+    updateField();
+    renderPlayers();
+    return;
+  }
+
+  // Select this player — highlight valid positions
+  selectedPlayer = player;
+  moveSource = null;
+  updateField();
+  // Highlight the card
+  document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+  const cards = document.querySelectorAll('.player-card');
+  cards.forEach(c => { if (c.dataset.name === playerName) c.classList.add('selected'); });
+}
+
+// Click on a field position
+function fpClick(slotId) {
+  if (gameOver || spinning) return;
+  const slot = SLOTS.find(s => s.id === slotId);
+
+  if (selectedPlayer) {
+    // A player from the list is selected — place them here if valid
+    if (!selections[slotId] && canAcceptPlayer(selectedPlayer.role, slot.role)) {
+      const p = selectedPlayer;
+      selectedPlayer = null;
+      placePlayer(p, slotId);
+    } else if (selections[slotId]) {
+      // Target is filled — can't place, deselect
+      selectedPlayer = null;
+      updateField();
+    }
+    return;
+  }
+
+  if (moveSource === null) {
+    // Click a filled position to start moving it
+    if (selections[slotId]) {
+      moveSource = slotId;
+      updateField();
+    }
+  } else if (moveSource === slotId) {
+    // Click same → deselect
+    moveSource = null;
+    updateField();
+  } else {
+    // Move/swap
+    const srcSlot  = SLOTS.find(s => s.id === moveSource);
+    const srcPlayer  = selections[moveSource];
+    const destPlayer = selections[slotId];
+    if (srcPlayer && canAcceptPlayer(srcPlayer.role, slot.role) &&
+        (!destPlayer || canAcceptPlayer(destPlayer.role, srcSlot.role))) {
+      selections[slotId] = srcPlayer;
+      if (destPlayer) selections[moveSource] = destPlayer;
+      else delete selections[moveSource];
+    }
+    moveSource = null;
+    updateField();
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// PLACE PLAYER
+// ════════════════════════════════════════════════════════
+function placePlayer(player, slotId) {
+  selections[slotId] = { ...player, _decade: currentDecade };
+  selectedPlayer = null;
+  moveSource = null;
+  updateField();
+
+  if (SLOTS.every(s => selections[s.id])) {
+    setTimeout(showFinal, 500);
+    return;
+  }
+
+  document.getElementById("spin-status").textContent = `✓ ${player.name} added`;
+  document.getElementById("spin-status").classList.add("active");
+  document.getElementById("players-area").innerHTML =
+    `<div class="waiting-msg">Spinning next nation &amp; decade…</div>`;
+  document.getElementById("search-wrap").style.display = "none";
+  setTimeout(nextSpin, 800);
+}
+
+// ════════════════════════════════════════════════════════
+// RE-SPIN
+// ════════════════════════════════════════════════════════
+function updateRespinButtons() {
+  const dBtn = document.getElementById("respin-decade-btn");
+  const nBtn = document.getElementById("respin-nation-btn");
+  dBtn.disabled = spinning || gameOver || reSpinDecadeUsed;
+  nBtn.disabled = spinning || gameOver || reSpinNationUsed;
+  document.getElementById("respin-decade-uses").textContent = reSpinDecadeUsed ? "Used" : "1 use remaining";
+  document.getElementById("respin-nation-uses").textContent = reSpinNationUsed ? "Used" : "1 use remaining";
+}
+
+function reSpinDecade() {
+  if (spinning || gameOver || reSpinDecadeUsed) return;
+  reSpinDecadeUsed = true;
+  updateRespinButtons();
+  const newDecade = getValidDecadeForNation(currentNation);
+  if (!newDecade) { nextSpin(); return; }
+  const dEl = document.getElementById("decade-spin");
+  dEl.classList.add("spinning");
+  document.getElementById("spin-status").textContent = "";
+  document.getElementById("spin-status").classList.remove("active");
+  document.getElementById("players-area").innerHTML = `<div class="waiting-msg">Re-spinning decade…</div>`;
+  document.getElementById("search-wrap").style.display = "none";
+  selectedPlayer = null;
+  const delays = [40,45,50,60,75,100,140,190,260,350,450];
+  let step = 0;
+  spinning = true;
+  updateField();
+  function tick() {
+    const decades = DECADES_BY_NATION[currentNation] || ALL_DECADES;
+    dEl.textContent = decades[Math.floor(Math.random() * decades.length)];
+    step++;
+    if (step < delays.length) {
+      setTimeout(tick, delays[step]);
+    } else {
+      dEl.textContent = newDecade;
+      dEl.classList.remove("spinning"); dEl.classList.add("landed");
+      setTimeout(() => {
+        dEl.classList.remove("landed");
+        currentDecade = newDecade;
+        spinning = false;
+        updateField();
+        updateRespinButtons();
+        document.getElementById("spin-status").textContent = "Pick a player below";
+        document.getElementById("spin-status").classList.add("active");
+        renderPlayers();
+      }, 300);
+    }
+  }
+  tick();
+}
+
+function reSpinNation() {
+  if (spinning || gameOver || reSpinNationUsed) return;
+  reSpinNationUsed = true;
+  updateRespinButtons();
+  const combo = getValidCombo();
+  if (!combo) return;
+  selectedPlayer = null;
+  spinTo(combo.nation, combo.decade, () => {});
+}
+
+// ════════════════════════════════════════════════════════
+// SPIN ANIMATION
+// ════════════════════════════════════════════════════════
+function spinTo(nation, decade, onDone) {
+  spinning = true;
+  selectedPlayer = null;
+  updateField();
+  updateRespinButtons();
+  const nEl    = document.getElementById("nation-spin");
+  const dEl    = document.getElementById("decade-spin");
+  const statEl = document.getElementById("spin-status");
+  nEl.classList.add("spinning"); dEl.classList.add("spinning");
+  statEl.textContent = ""; statEl.classList.remove("active");
+  document.getElementById("search-wrap").style.display = "none";
+  document.getElementById("search-input").value = "";
+  document.getElementById("players-area").innerHTML = `<div class="waiting-msg">Spinning…</div>`;
+  const delays = [35,35,40,45,50,55,65,80,100,130,170,220,280,350,450,550];
+  let step = 0;
+  function tick() {
+    nEl.textContent = NATIONS[Math.floor(Math.random() * NATIONS.length)];
+    dEl.textContent = ALL_DECADES[Math.floor(Math.random() * ALL_DECADES.length)];
+    step++;
+    if (step < delays.length) {
+      setTimeout(tick, delays[step]);
+    } else {
+      nEl.textContent = nation; dEl.textContent = decade;
+      nEl.classList.remove("spinning"); nEl.classList.add("landed");
+      dEl.classList.remove("spinning"); dEl.classList.add("landed");
+      setTimeout(() => {
+        nEl.classList.remove("landed"); dEl.classList.remove("landed");
+        spinning = false; currentNation = nation; currentDecade = decade;
+        statEl.textContent = "Click a player, then click a position on the field";
+        statEl.classList.add("active");
+        updateField();
+        updateRespinButtons();
+        renderPlayers();
+        onDone();
+      }, 320);
+    }
+  }
+  tick();
+}
+
+// ════════════════════════════════════════════════════════
+// PLAYER LIST
+// ════════════════════════════════════════════════════════
+function renderPlayers(filter) {
+  const area = document.getElementById("players-area");
+  let players = availablePlayers();
+  if (filter) players = players.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+
+  if (players.length === 0) {
+    area.innerHTML = `<div class="no-players">No players for <strong>${currentNation} · ${currentDecade}</strong>. Spinning again…</div>`;
+    document.getElementById("search-wrap").style.display = "none";
+    setTimeout(nextSpin, 1600);
+    return;
+  }
+
+  let html = `<div class="players-header">${currentNation} · ${currentDecade}</div>`;
+  html += players.map(p => {
+    const safeName = p.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const sel = selectedPlayer && selectedPlayer.name === p.name ? ' selected' : '';
+    return `<div class="player-card${sel}" data-name="${safeName}" onclick="onPlayerCardClick(this.dataset.name)">
+      <div>
+        <div class="pc-name">${p.name}</div>
+        <div class="pc-stats">${getDecadeData(p, currentDecade).stats} · <span class="pc-role-tag">${ROLE_LABEL[p.role]}</span></div>
+      </div>
+      <div class="pc-arrow">›</div>
+    </div>`;
+  }).join("");
+
+  area.innerHTML = html;
+  document.getElementById("search-wrap").style.display = "block";
+}
+
+function filterPlayers() {
+  renderPlayers(document.getElementById("search-input").value);
+}
+
+function nextSpin() {
+  const combo = getValidCombo();
+  if (!combo) { showFinal(); return; }
+  spinTo(combo.nation, combo.decade, () => {});
+}
+
+// ════════════════════════════════════════════════════════
+// FINAL SCORE
+// ════════════════════════════════════════════════════════
+function showFinal() {
+  gameOver = true; spinning = false;
+  document.getElementById("nation-spin").textContent = "Done";
+  document.getElementById("decade-spin").textContent = "🏏";
+  document.getElementById("spin-status").textContent = "Lineup complete!";
+  document.getElementById("spin-status").classList.add("active");
+  updateRespinButtons();
+
+  let total = 0;
+  const rows = SLOTS.map(slot => {
+    const p = selections[slot.id];
+    const r = p ? getRating(p) : 0;
+    const ds = p ? getDecadeData(p, p._decade) : null;
+    total += r;
+    return { label:slot.label, player:p, rating:r, stats: ds ? ds.stats : "" };
+  });
+
+  // Tier ranking — requires exceptional teams to reach the top
+  const tier =
+    total >= 545 ? "The Invincibles"      :
+    total >= 515 ? "All-Time World XI"    :
+    total >= 488 ? "Elite Test Side"      :
+    total >= 460 ? "World Class"          :
+    total >= 432 ? "Strong Test Team"     :
+    total >= 403 ? "Solid International"  :
+    total >= 374 ? "Club Level"           :
+                   "Back to the Nets";
+
+  document.getElementById("sc-total").textContent = total;
+  document.getElementById("sc-grade").textContent  = tier;
+  document.getElementById("sc-grid").innerHTML = rows.map(r =>
+    `<div class="sc-row">
+      <div>
+        <div class="sc-role">${r.label}</div>
+        ${r.player ? `<div class="sc-combo">${r.player.nation} · ${r.player._decade}</div>` : ""}
+        <div class="sc-name">${r.player ? r.player.name : "—"}</div>
+        ${r.player ? `<div class="sc-stats-reveal">${r.stats}</div>` : ""}
+      </div>
+      <div class="sc-val">${r.rating || "—"}</div>
+    </div>`
+  ).join("");
+
+  document.getElementById("score-panel").classList.add("visible");
+  document.getElementById("score-panel").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  updateField();
+}
+
+function shareScore() {
+  let total = 0;
+  const lines = SLOTS.map(s => {
+    const p = selections[s.id]; const r = p ? getRating(p) : 0; total += r;
+    return `${s.label}: ${p ? `${p.name} (${p._decade})` : "—"} [${r}]`;
+  });
+  const tier =
+    total >= 545 ? "The Invincibles"    :
+    total >= 515 ? "All-Time World XI"  :
+    total >= 488 ? "Elite Test Side"    :
+    total >= 460 ? "World Class"        :
+    total >= 432 ? "Strong Test Team"   :
+    total >= 403 ? "Solid International":
+    total >= 374 ? "Club Level"         :
+                   "Back to the Nets";
+  const text = `🏏 Cricket XI — ${tier}\nScore: ${total}\n\n${lines.join("\n")}`;
+  navigator.clipboard?.writeText(text).then(() => alert("Copied!")).catch(() => prompt("Copy:", text));
+}
+
+// ════════════════════════════════════════════════════════
+// NEW GAME
+// ════════════════════════════════════════════════════════
+function newGame() {
+  selections = {}; spinning = false; gameOver = false;
+  currentNation = ""; currentDecade = "";
+  reSpinDecadeUsed = false; reSpinNationUsed = false;
+  selectedPlayer = null; moveSource = null;
+
+  document.getElementById("score-panel").classList.remove("visible");
+  document.getElementById("score-strip").style.display = "none";
+  document.getElementById("search-input").value = "";
+  document.getElementById("search-wrap").style.display = "none";
+  document.getElementById("spin-status").textContent = "";
+  document.getElementById("spin-status").classList.remove("active");
+  document.getElementById("nation-spin").textContent = "—";
+  document.getElementById("decade-spin").textContent = "—";
+  document.getElementById("players-area").innerHTML = `<div class="waiting-msg"><strong>Spinning…</strong></div>`;
+
+  updateField();
+  updateRespinButtons();
+  setTimeout(nextSpin, 400);
+}
+
+// ── START ──
+newGame();
+</script>
+</body>
+</html>
