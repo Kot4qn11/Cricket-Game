@@ -447,8 +447,8 @@
 
 <!-- Final score -->
 <div class="score-panel" id="score-panel">
-  <div class="sc-label">Final Score</div>
-  <div class="sc-total" id="sc-total">—</div>
+  <div class="sc-label">Your Team</div>
+  <div class="sc-total" id="sc-total" style="display:none">—</div>
   <div class="sc-grade"  id="sc-grade"></div>
   <div class="sc-grid"   id="sc-grid"></div>
   <div class="sc-btns">
@@ -1281,10 +1281,7 @@ function updateField() {
     }
   });
 
-  if (Object.keys(selections).length > 0) {
-    document.getElementById('score-strip').style.display = 'block';
-    document.getElementById('running-score').textContent = total;
-  }
+  // score strip intentionally hidden — no live score shown
 }
 
 // ════════════════════════════════════════════════════════
@@ -1572,7 +1569,6 @@ function showFinal() {
         <div class="sc-name">${r.player ? r.player.name : "—"}</div>
         ${r.player ? `<div class="sc-stats-reveal">${r.stats}</div>` : ""}
       </div>
-      <div class="sc-val">${r.rating || "—"}</div>
     </div>`
   ).join("");
 
@@ -1596,7 +1592,7 @@ function shareScore() {
     total >= 403 ? "Solid International":
     total >= 374 ? "Club Level"         :
                    "Back to the Nets";
-  const text = `🏏 Cricket XI — ${tier}\nScore: ${total}\n\n${lines.join("\n")}`;
+  const text = `🏏 Cricket XI — ${tier}\n\n${lines.map(l => l.replace(/ \[\d+\]$/, '')).join("\n")}`;
   navigator.clipboard?.writeText(text).then(() => alert("Copied!")).catch(() => prompt("Copy:", text));
 }
 
