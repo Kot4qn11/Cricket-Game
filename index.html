@@ -4,27 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cricket XI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0d0d0d;
-      --surface:    #141414;
-      --surface2:   #1c1c1c;
-      --surface3:   #222;
-      --border:     #2a2a2a;
-      --border2:    #333;
-      --gold:       #c9a227;
-      --gold-light: #e0b83a;
-      --text:       #e8e8e8;
-      --text-muted: #777;
-      --text-dim:   #444;
-      --font:       system-ui,-apple-system,"Segoe UI",sans-serif;
+      --bg:         #e8f5e9;
+      --surface:    #ffffff;
+      --surface2:   #f1f8f2;
+      --surface3:   #e0f2e1;
+      --border:     #c8e6c9;
+      --border2:    #a5d6a7;
+      --gold:       #f59e0b;
+      --gold-light: #fbbf24;
+      --green:      #2e7d32;
+      --green-mid:  #43a047;
+      --green-light:#66bb6a;
+      --blue:       #1976d2;
+      --text:       #1b2e1c;
+      --text-muted: #4a7a4c;
+      --text-dim:   #8ab88c;
+      --font:       'Nunito', system-ui, sans-serif;
+      --radius:     14px;
     }
 
     body {
       font-family: var(--font);
-      background: var(--bg);
+      background: linear-gradient(160deg, #c8e6c9 0%, #e8f5e9 40%, #dcedc8 100%);
       color: var(--text);
       min-height: 100vh;
       display: flex;
@@ -32,14 +39,22 @@
     }
 
     header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #1565c0 100%);
       text-align: center;
-      padding: 14px 20px 12px;
+      padding: 18px 20px 14px;
       flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     }
-    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; color: var(--gold); }
-    header p  { color: var(--text-muted); font-size: 0.7rem; letter-spacing: 1.5px; margin-top: 4px; text-transform: uppercase; }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    header h1 span { color: var(--gold); }
+    header p  { color: rgba(255,255,255,0.75); font-size: 0.78rem; font-weight: 600; margin-top: 4px; letter-spacing: 1px; }
 
     /* ── LAYOUT ── */
     .game-layout {
@@ -51,18 +66,24 @@
 
     /* ── FIELD PANEL ── */
     .field-panel {
-      background: radial-gradient(ellipse at 50% 40%, #1e5228 0%, #102018 70%, #080e0a 100%);
+      background: radial-gradient(ellipse at 50% 35%, #2e7d32 0%, #1b5e20 60%, #0a2e10 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 20px 16px;
-      border-right: 1px solid #0a1a0e;
+      border-right: 3px solid #0a2e10;
       gap: 14px;
+      box-shadow: inset -4px 0 20px rgba(0,0,0,0.2);
     }
-    .field-label { color: var(--text-dim); font-size: 0.6rem; letter-spacing: 4px; text-transform: uppercase; }
+    .field-label {
+      color: rgba(255,255,255,0.6);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
 
-    /* SVG wrapper — positions HTML overlays relative to this */
     .field-wrap {
       position: relative;
       width: 100%;
@@ -71,14 +92,14 @@
     #cricket-field {
       display: block;
       width: 100%;
-      filter: drop-shadow(0 12px 32px rgba(0,0,0,0.7));
+      filter: drop-shadow(0 12px 32px rgba(0,0,0,0.6));
     }
 
     /* ── POSITION OVERLAYS ── */
     .fpos {
       position: absolute;
-      width: 54px;
-      height: 54px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       transform: translate(-50%, -50%);
       display: flex;
@@ -86,91 +107,103 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      background: rgba(14, 34, 18, 0.92);
-      border: 2px solid #2a5a34;
+      background: rgba(10, 46, 16, 0.88);
+      border: 3px solid #3a7a44;
       transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.15s, opacity 0.18s;
       user-select: none;
       -webkit-user-select: none;
     }
-    /* Default label (role abbreviation) */
     .fpos-lbl {
-      font-size: 6.5px;
-      color: rgba(255,255,255,0.35);
+      font-size: 7px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.4);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       text-align: center;
       line-height: 1.3;
       pointer-events: none;
+      font-family: var(--font);
     }
-    /* Initials shown when filled */
     .fpos-init {
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 900;
       color: #fff;
       letter-spacing: 1px;
       pointer-events: none;
       display: none;
+      font-family: var(--font);
     }
     .fpos-role {
-      font-size: 5.5px;
-      color: rgba(255,255,255,0.4);
+      font-size: 6px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       pointer-events: none;
       display: none;
       margin-top: 1px;
+      font-family: var(--font);
     }
 
-    /* States */
     .fpos.filled {
-      border-color: #3adf60;
-      background: rgba(20, 74, 32, 0.92);
+      border-color: #69f0ae;
+      background: rgba(14, 90, 38, 0.95);
+      box-shadow: 0 0 12px rgba(105,240,174,0.5);
     }
     .fpos.filled .fpos-lbl  { display: none; }
     .fpos.filled .fpos-init { display: block; }
     .fpos.filled .fpos-role { display: block; }
 
-    /* Available = current spin has a player for this slot */
     .fpos.available {
       border-color: var(--gold);
-      background: rgba(28, 58, 16, 0.92);
-      box-shadow: 0 0 14px rgba(201,162,39,0.45);
+      background: rgba(40, 70, 20, 0.92);
+      box-shadow: 0 0 16px rgba(245,158,11,0.6);
+      animation: pulse-gold 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-gold {
+      0%,100% { box-shadow: 0 0 16px rgba(245,158,11,0.5); }
+      50%      { box-shadow: 0 0 26px rgba(245,158,11,0.9); }
     }
 
-    /* During drag/selection: valid targets glow green */
     .fpos.valid-target {
       border-color: #00e87a;
-      background: rgba(20, 80, 40, 0.92);
-      box-shadow: 0 0 16px rgba(0,232,122,0.5);
-      transform: translate(-50%, -50%) scale(1.08);
+      background: rgba(20, 90, 40, 0.95);
+      box-shadow: 0 0 20px rgba(0,232,122,0.65);
+      transform: translate(-50%, -50%) scale(1.1);
+      animation: pulse-green 0.9s ease-in-out infinite;
+    }
+    @keyframes pulse-green {
+      0%,100% { box-shadow: 0 0 18px rgba(0,232,122,0.55); }
+      50%      { box-shadow: 0 0 30px rgba(0,232,122,0.9); }
     }
 
-    /* Hovering over a valid target during drag */
     .fpos.drag-hover {
       border-color: #00ff99;
-      background: rgba(30, 110, 55, 0.95);
-      box-shadow: 0 0 22px rgba(0,255,153,0.65);
-      transform: translate(-50%, -50%) scale(1.12);
+      background: rgba(30, 120, 60, 0.98);
+      box-shadow: 0 0 28px rgba(0,255,153,0.8);
+      transform: translate(-50%, -50%) scale(1.14);
     }
 
-    /* Incompatible slots dim during drag/selection */
-    .fpos.invalid-target { opacity: 0.28; }
+    .fpos.invalid-target { opacity: 0.22; }
 
-    /* Selected source for move */
     .fpos.move-source {
       border-color: #fff;
-      box-shadow: 0 0 18px rgba(255,255,255,0.4);
+      box-shadow: 0 0 18px rgba(255,255,255,0.5);
     }
 
     .score-strip { text-align: center; display: none; }
-    .score-strip .sv { font-size: 2rem; font-weight: 700; color: var(--gold); line-height: 1; }
-    .score-strip .sl { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; }
 
-    .field-hint { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 1px; text-align: center; }
+    .field-hint {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
 
     /* ── SELECTOR ── */
     .selector-panel {
-      background: var(--surface);
+      background: transparent;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -178,137 +211,207 @@
 
     /* Spin area */
     .spin-area {
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 20px 14px;
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+      border-bottom: 3px solid #0d47a1;
+      padding: 18px 20px 16px;
       flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(21,101,192,0.3);
     }
-    .spin-label { font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
-    .spin-boxes { display: flex; gap: 8px; align-items: center; }
+    .spin-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 12px;
+    }
+    .spin-boxes { display: flex; gap: 10px; align-items: stretch; }
     .spin-box {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--gold);
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      border-radius: 8px;
-      padding: 9px 14px;
-      min-width: 100px;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #fff;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      flex: 1;
       text-align: center;
-      letter-spacing: 0.5px;
-      transition: color 0.1s;
+      letter-spacing: 0.3px;
+      transition: color 0.1s, background 0.15s;
+      backdrop-filter: blur(4px);
+      min-height: 58px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
     }
-    .spin-box.spinning { color: rgba(201,162,39,0.2); }
-    .spin-box.landed   { animation: pop 0.28s ease-out; }
-    @keyframes pop { 0%{transform:scale(0.88)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
-    .spin-divider { color: var(--text-dim); font-size: 1rem; }
-    .spin-status  { margin-top: 8px; font-size: 0.74rem; color: var(--text-dim); min-height: 16px; }
-    .spin-status.active { color: var(--gold); }
+    .spin-box .sb-flag { font-size: 1.6rem; line-height: 1; }
+    .spin-box .sb-name { font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+    .spin-box.spinning { color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
+    .spin-box.landed   { animation: pop 0.32s cubic-bezier(.17,.67,.35,1.4); }
+    @keyframes pop { 0%{transform:scale(0.85)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
+    .spin-divider { color: rgba(255,255,255,0.4); font-size: 1.2rem; font-weight: 700; align-self: center; }
+    .spin-status  { margin-top: 10px; font-size: 0.78rem; font-weight: 700; color: rgba(255,255,255,0.6); min-height: 18px; }
+    .spin-status.active { color: #69f0ae; }
 
     /* Re-spin */
     .respin-row { display: flex; gap: 8px; margin-top: 12px; }
     .respin-btn {
       flex: 1;
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      color: var(--text);
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 0.74rem;
+      background: rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,255,255,0.25);
+      color: #fff;
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 0.76rem;
+      font-weight: 700;
       font-family: var(--font);
       cursor: pointer;
       text-align: center;
       transition: background 0.15s, border-color 0.15s, opacity 0.2s;
       line-height: 1.4;
     }
-    .respin-btn:hover:not(:disabled) { background: var(--surface3); border-color: var(--gold); }
+    .respin-btn:hover:not(:disabled) { background: rgba(255,255,255,0.22); border-color: var(--gold); }
     .respin-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-    .respin-btn .rb-label { font-weight: 600; font-size: 0.76rem; }
-    .respin-btn .rb-uses  { color: var(--text-dim); font-size: 0.64rem; margin-top: 2px; }
-    .respin-btn:not(:disabled) .rb-uses { color: var(--gold); }
+    .respin-btn .rb-label { font-weight: 800; font-size: 0.78rem; }
+    .respin-btn .rb-uses  { color: rgba(255,255,255,0.5); font-size: 0.65rem; margin-top: 2px; }
+    .respin-btn:not(:disabled) .rb-uses { color: #fbbf24; }
 
     /* Search */
-    .search-wrap { padding: 12px 16px 0; flex-shrink: 0; }
+    .search-wrap { padding: 14px 16px 0; flex-shrink: 0; }
     .search-wrap input {
       width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 0.88rem;
+      background: #fff;
+      border: 2px solid var(--border2);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
       font-family: var(--font);
       color: var(--text);
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
     .search-wrap input::placeholder { color: var(--text-dim); }
-    .search-wrap input:focus { border-color: var(--gold); }
+    .search-wrap input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(25,118,210,0.15); }
 
     /* Players list */
-    .players-area { flex: 1; padding: 12px 16px 20px; overflow-y: auto; }
+    .players-area { flex: 1; padding: 12px 14px 20px; overflow-y: auto; }
     .players-header {
-      font-size: 0.62rem;
-      letter-spacing: 2px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      color: var(--text-dim);
+      color: var(--green);
       margin-bottom: 10px;
       padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid var(--border2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .player-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      background: var(--surface2);
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 6px;
+      gap: 10px;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      margin-bottom: 8px;
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s, transform 0.1s, opacity 0.15s;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s, box-shadow 0.15s;
       user-select: none;
       -webkit-user-select: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .player-card:hover    { border-color: var(--gold); background: var(--surface3); }
+    .player-card:hover    { border-color: var(--gold); background: #fffde7; box-shadow: 0 4px 16px rgba(245,158,11,0.2); transform: translateY(-1px); }
     .player-card:active   { transform: scale(0.98); }
-    .player-card.selected { border-color: #00e87a; background: rgba(0,60,30,0.6); box-shadow: 0 0 10px rgba(0,232,122,0.3); }
-    .pc-name      { font-size: 0.92rem; font-weight: 600; color: var(--text); }
-    .pc-stats     { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
-    .pc-role-tag  { color: var(--gold); font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .pc-arrow     { color: var(--text-dim); font-size: 1rem; flex-shrink: 0; transition: color 0.15s; }
-    .player-card:hover .pc-arrow { color: var(--gold); }
+    .player-card.selected { border-color: #00c853; background: #e8f5e9; box-shadow: 0 0 0 3px rgba(0,200,83,0.2); }
+    .pc-name      { font-size: 0.95rem; font-weight: 800; color: var(--text); }
+    .pc-stats     { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+    .pc-role-tag  { color: var(--blue); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: #e3f2fd; border-radius: 4px; padding: 1px 5px; }
+    .pc-arrow     { color: var(--border2); font-size: 1.3rem; font-weight: 900; flex-shrink: 0; transition: color 0.15s; }
+    .player-card:hover .pc-arrow    { color: var(--gold); }
+    .player-card.selected .pc-arrow { color: #00c853; }
 
-    .no-players  { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 28px 16px; line-height: 1.8; }
-    .waiting-msg { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 36px 16px; line-height: 2; }
-    .waiting-msg strong { color: var(--gold); }
+    .no-players  { color: var(--text-muted); font-size: 0.88rem; font-weight: 700; text-align: center; padding: 28px 16px; line-height: 2; }
+    .waiting-msg { color: var(--text-muted); font-size: 0.88rem; font-weight: 600; text-align: center; padding: 36px 16px; line-height: 2; }
+    .waiting-msg strong { color: var(--green); }
 
     /* ── SCORE PANEL ── */
-    .score-panel { display: none; background: var(--surface); border-top: 1px solid var(--border); padding: 28px 24px; text-align: center; }
+    .score-panel { display: none; background: linear-gradient(160deg,#e8f5e9,#dcedc8); border-top: 3px solid var(--border2); padding: 32px 24px; text-align: center; }
     .score-panel.visible { display: block; }
-    .sc-label { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
-    .sc-total { font-size: 3.5rem; font-weight: 700; color: var(--gold); line-height: 1; }
-    .sc-grade { font-size: 1.1rem; margin: 12px 0 20px; color: var(--text); }
-    .sc-grid  { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; max-width: 720px; margin: 0 auto; }
-    .sc-row   { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; text-align: left; }
-    .sc-role  { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-    .sc-stats-reveal { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
-    .sc-combo { font-size: 0.64rem; color: var(--text-muted); margin-top: 1px; }
-    .sc-name  { font-size: 0.84rem; margin-top: 4px; color: var(--text); }
-    .sc-val   { font-weight: 700; color: var(--gold); font-size: 1.05rem; flex-shrink: 0; }
-    .sc-btns  { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    .share-btn { background: var(--gold); color: #111; border: none; padding: 10px 28px; border-radius: 6px; font-weight: 700; cursor: pointer; font-family: var(--font); font-size: 0.88rem; transition: background 0.15s; }
-    .share-btn:hover { background: var(--gold-light); }
-    .new-game-btn-end { background: transparent; color: var(--text); border: 1px solid var(--border2); padding: 10px 28px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: var(--font); font-size: 0.88rem; transition: border-color 0.15s; }
-    .new-game-btn-end:hover { border-color: var(--text-muted); }
+    .sc-label { font-size: 0.78rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .sc-total { font-size: 3.5rem; font-weight: 900; color: var(--gold); line-height: 1; }
+    .sc-grade {
+      font-size: 1.6rem;
+      font-weight: 900;
+      margin: 14px 0 24px;
+      color: var(--green);
+      background: #fff;
+      display: inline-block;
+      padding: 10px 28px;
+      border-radius: 50px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      border: 3px solid var(--border2);
+    }
+    .sc-grid  { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; max-width: 760px; margin: 0 auto; }
+    .sc-row   {
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      text-align: left;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      transition: transform 0.15s;
+    }
+    .sc-row:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+    .sc-role  { font-size: 0.62rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .sc-stats-reveal { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); margin-top: 3px; }
+    .sc-combo { font-size: 0.66rem; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+    .sc-name  { font-size: 0.9rem; font-weight: 800; margin-top: 4px; color: var(--text); }
+    .sc-val   { font-weight: 900; color: var(--gold); font-size: 1.1rem; flex-shrink: 0; }
+    .sc-btns  { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .share-btn {
+      background: linear-gradient(135deg,#f59e0b,#fbbf24);
+      color: #fff;
+      border: none;
+      padding: 13px 32px;
+      border-radius: 50px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 0.95rem;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .share-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245,158,11,0.55); }
+    .new-game-btn-end {
+      background: linear-gradient(135deg,#1565c0,#1976d2);
+      color: #fff;
+      border: none;
+      padding: 13px 32px;
+      border-radius: 50px;
+      font-weight: 900;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 0.95rem;
+      box-shadow: 0 4px 14px rgba(21,101,192,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .new-game-btn-end:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(21,101,192,0.55); }
 
-    .players-area::-webkit-scrollbar { width: 4px; }
+    .players-area::-webkit-scrollbar { width: 5px; }
     .players-area::-webkit-scrollbar-track { background: transparent; }
-    .players-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+    .players-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
 
     @media (max-width: 680px) {
       .game-layout { grid-template-columns: 1fr; }
-      .field-panel { border-right: none; border-bottom: 1px solid #0a1a0e; }
+      .field-panel { border-right: none; border-bottom: 3px solid #0a2e10; }
       .field-wrap  { max-width: 240px; }
       .sc-grid { grid-template-columns: 1fr 1fr; }
     }
@@ -317,8 +420,8 @@
 <body>
 
 <header>
-  <h1>Cricket XI</h1>
-  <p>One pick at a time · 1970s onwards · Nation &amp; decade spins each round</p>
+  <h1>🏏 Cricket <span>XI</span> 🏏</h1>
+  <p>Pick your ultimate Test XI — one spin at a time!</p>
 </header>
 
 <div class="game-layout">
@@ -413,8 +516,11 @@
     <div class="spin-area">
       <div class="spin-label">Now Selecting</div>
       <div class="spin-boxes">
-        <div class="spin-box" id="nation-spin">—</div>
-        <div class="spin-divider">·</div>
+        <div class="spin-box" id="nation-spin">
+          <span class="sb-flag" id="nation-flag">🏏</span>
+          <span class="sb-name" id="nation-name">—</span>
+        </div>
+        <div class="spin-divider">vs</div>
         <div class="spin-box" id="decade-spin">—</div>
       </div>
       <div class="spin-status" id="spin-status"></div>
@@ -1133,6 +1239,23 @@ const DECADE_STATS = {
 // CONFIG
 // ════════════════════════════════════════════════════════
 const NATIONS = ["Australia","England","India","Pakistan","West Indies","South Africa","New Zealand","Sri Lanka","Bangladesh","Zimbabwe","Afghanistan"];
+const NATION_FLAG = {
+  "Australia":    "🇦🇺",
+  "England":      "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "India":        "🇮🇳",
+  "Pakistan":     "🇵🇰",
+  "West Indies":  "🏝️",
+  "South Africa": "🇿🇦",
+  "New Zealand":  "🇳🇿",
+  "Sri Lanka":    "🇱🇰",
+  "Bangladesh":   "🇧🇩",
+  "Zimbabwe":     "🇿🇼",
+  "Afghanistan":  "🇦🇫",
+};
+function setNationSpin(nation) {
+  document.getElementById("nation-flag").textContent = NATION_FLAG[nation] || "🏏";
+  document.getElementById("nation-name").textContent = nation;
+}
 const DECADES_BY_NATION = {
   "Australia":    ["1970s","1980s","1990s","2000s","2010s","2020s"],
   "England":      ["1970s","1980s","1990s","2000s","2010s","2020s"],
@@ -1462,13 +1585,15 @@ function spinTo(nation, decade, onDone) {
   const delays = [35,35,40,45,50,55,65,80,100,130,170,220,280,350,450,550];
   let step = 0;
   function tick() {
-    nEl.textContent = NATIONS[Math.floor(Math.random() * NATIONS.length)];
+    const rn = NATIONS[Math.floor(Math.random() * NATIONS.length)];
+    document.getElementById("nation-flag").textContent = NATION_FLAG[rn] || "🏏";
+    document.getElementById("nation-name").textContent = rn;
     dEl.textContent = ALL_DECADES[Math.floor(Math.random() * ALL_DECADES.length)];
     step++;
     if (step < delays.length) {
       setTimeout(tick, delays[step]);
     } else {
-      nEl.textContent = nation; dEl.textContent = decade;
+      setNationSpin(nation); dEl.textContent = decade;
       nEl.classList.remove("spinning"); nEl.classList.add("landed");
       dEl.classList.remove("spinning"); dEl.classList.add("landed");
       setTimeout(() => {
@@ -1501,7 +1626,7 @@ function renderPlayers(filter) {
     return;
   }
 
-  let html = `<div class="players-header">${currentNation} · ${currentDecade}</div>`;
+  let html = `<div class="players-header">${NATION_FLAG[currentNation] || "🏏"} ${currentNation} · ${currentDecade}</div>`;
   html += players.map(p => {
     const safeName = p.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const sel = selectedPlayer && selectedPlayer.name === p.name ? ' selected' : '';
@@ -1533,7 +1658,8 @@ function nextSpin() {
 // ════════════════════════════════════════════════════════
 function showFinal() {
   gameOver = true; spinning = false;
-  document.getElementById("nation-spin").textContent = "Done";
+  document.getElementById("nation-flag").textContent = "🏆";
+  document.getElementById("nation-name").textContent = "Done!";
   document.getElementById("decade-spin").textContent = "🏏";
   document.getElementById("spin-status").textContent = "Lineup complete!";
   document.getElementById("spin-status").classList.add("active");
@@ -1565,7 +1691,7 @@ function showFinal() {
     `<div class="sc-row">
       <div>
         <div class="sc-role">${r.label}</div>
-        ${r.player ? `<div class="sc-combo">${r.player.nation} · ${r.player._decade}</div>` : ""}
+        ${r.player ? `<div class="sc-combo">${NATION_FLAG[r.player.nation] || ""} ${r.player.nation} · ${r.player._decade}</div>` : ""}
         <div class="sc-name">${r.player ? r.player.name : "—"}</div>
         ${r.player ? `<div class="sc-stats-reveal">Tests · ${r.stats}</div>` : ""}
       </div>
@@ -1611,7 +1737,8 @@ function newGame() {
   document.getElementById("search-wrap").style.display = "none";
   document.getElementById("spin-status").textContent = "";
   document.getElementById("spin-status").classList.remove("active");
-  document.getElementById("nation-spin").textContent = "—";
+  document.getElementById("nation-flag").textContent = "🏏";
+  document.getElementById("nation-name").textContent = "—";
   document.getElementById("decade-spin").textContent = "—";
   document.getElementById("players-area").innerHTML = `<div class="waiting-msg"><strong>Spinning…</strong></div>`;
 
