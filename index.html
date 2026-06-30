@@ -1508,7 +1508,7 @@ function renderPlayers(filter) {
     return `<div class="player-card${sel}" data-name="${safeName}" onclick="onPlayerCardClick(this.dataset.name)">
       <div>
         <div class="pc-name">${p.name}</div>
-        <div class="pc-stats">${getDecadeData(p, currentDecade).stats} · <span class="pc-role-tag">${ROLE_LABEL[p.role]}</span></div>
+        <div class="pc-stats">Tests · ${getDecadeData(p, currentDecade).stats} · <span class="pc-role-tag">${ROLE_LABEL[p.role]}</span></div>
       </div>
       <div class="pc-arrow">›</div>
     </div>`;
@@ -1567,7 +1567,7 @@ function showFinal() {
         <div class="sc-role">${r.label}</div>
         ${r.player ? `<div class="sc-combo">${r.player.nation} · ${r.player._decade}</div>` : ""}
         <div class="sc-name">${r.player ? r.player.name : "—"}</div>
-        ${r.player ? `<div class="sc-stats-reveal">${r.stats}</div>` : ""}
+        ${r.player ? `<div class="sc-stats-reveal">Tests · ${r.stats}</div>` : ""}
       </div>
     </div>`
   ).join("");
