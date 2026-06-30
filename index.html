@@ -59,9 +59,10 @@
     /* ── LAYOUT ── */
     .game-layout {
       display: grid;
-      grid-template-columns: 1fr 360px;
+      grid-template-columns: 440px 1fr;
       flex: 1;
       min-height: 0;
+      max-height: calc(100vh - 72px);
     }
 
     /* ── FIELD PANEL ── */
@@ -260,8 +261,8 @@
       justify-content: center;
       gap: 2px;
     }
-    .spin-box .sb-flag { font-size: 1.6rem; line-height: 1; }
-    .spin-box .sb-name { font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+    .spin-box .sb-flag { width: 44px; height: 30px; object-fit: cover; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .spin-box .sb-name { font-size: 0.78rem; font-weight: 800; line-height: 1.2; }
     .spin-box.spinning { background: rgba(255,255,255,0.08); }
     .spin-box.spinning .sb-flag { animation: spinGlow 0.18s ease-in-out infinite alternate; }
     @keyframes spinGlow { from { opacity: 0.4; transform: scale(0.9); } to { opacity: 1; transform: scale(1.1); } }
@@ -533,7 +534,7 @@
       <div class="spin-label">Now Selecting</div>
       <div class="spin-boxes">
         <div class="spin-box" id="nation-spin">
-          <span class="sb-flag" id="nation-flag">🏏</span>
+          <img class="sb-flag" id="nation-flag" src="" alt="" style="display:none">
           <span class="sb-name" id="nation-name">—</span>
         </div>
         <div class="spin-divider">vs</div>
@@ -1256,20 +1257,23 @@ const DECADE_STATS = {
 // ════════════════════════════════════════════════════════
 const NATIONS = ["Australia","England","India","Pakistan","West Indies","South Africa","New Zealand","Sri Lanka","Bangladesh","Zimbabwe","Afghanistan"];
 const NATION_FLAG = {
-  "Australia":    "🇦🇺",
-  "England":      "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-  "India":        "🇮🇳",
-  "Pakistan":     "🇵🇰",
-  "West Indies":  "🏝️",
-  "South Africa": "🇿🇦",
-  "New Zealand":  "🇳🇿",
-  "Sri Lanka":    "🇱🇰",
-  "Bangladesh":   "🇧🇩",
-  "Zimbabwe":     "🇿🇼",
-  "Afghanistan":  "🇦🇫",
+  "Australia":    "https://flagcdn.com/w80/au.png",
+  "England":      "https://flagcdn.com/w80/gb-eng.png",
+  "India":        "https://flagcdn.com/w80/in.png",
+  "Pakistan":     "https://flagcdn.com/w80/pk.png",
+  "West Indies":  "https://flagcdn.com/w80/bb.png",
+  "South Africa": "https://flagcdn.com/w80/za.png",
+  "New Zealand":  "https://flagcdn.com/w80/nz.png",
+  "Sri Lanka":    "https://flagcdn.com/w80/lk.png",
+  "Bangladesh":   "https://flagcdn.com/w80/bd.png",
+  "Zimbabwe":     "https://flagcdn.com/w80/zw.png",
+  "Afghanistan":  "https://flagcdn.com/w80/af.png",
 };
 function setNationSpin(nation) {
-  document.getElementById("nation-flag").textContent = NATION_FLAG[nation] || "🏏";
+  const img = document.getElementById("nation-flag");
+  const url = NATION_FLAG[nation];
+  if (url) { img.src = url; img.alt = nation; img.style.display = "block"; }
+  else { img.style.display = "none"; }
   document.getElementById("nation-name").textContent = nation;
 }
 const DECADES_BY_NATION = {
@@ -1572,14 +1576,57 @@ function reSpinDecade() {
   tick();
 }
 
+function getValidNationForDecade(decade) {
+  const empty = emptySlots();
+  const valid = NATIONS.filter(n => n !== currentNation &&
+    (DECADES_BY_NATION[n] || []).includes(decade) &&
+    empty.some(slot => PLAYERS.some(p => p.nation === n && p.decades.includes(decade) && canAcceptPlayer(p.role, slot.role)))
+  );
+  return valid.length ? valid[Math.floor(Math.random() * valid.length)] : null;
+}
+
 function reSpinNation() {
   if (spinning || gameOver || reSpinNationUsed) return;
   reSpinNationUsed = true;
   updateRespinButtons();
-  const combo = getValidCombo();
-  if (!combo) return;
+  const newNation = getValidNationForDecade(currentDecade);
+  if (!newNation) { nextSpin(); return; }
   selectedPlayer = null;
-  spinTo(combo.nation, combo.decade, () => {});
+
+  const nEl    = document.getElementById("nation-spin");
+  const statEl = document.getElementById("spin-status");
+  nEl.classList.add("spinning");
+  statEl.textContent = ""; statEl.classList.remove("active");
+  document.getElementById("search-wrap").style.display = "none";
+  document.getElementById("players-area").innerHTML = `<div class="waiting-msg">Re-spinning nation…</div>`;
+  document.getElementById("nation-flag").style.display = "none";
+  document.getElementById("nation-name").textContent = "…";
+
+  const delays = [40,45,50,60,75,100,140,190,260,350,450];
+  let step = 0;
+  spinning = true;
+  updateField();
+  function tick() {
+    document.getElementById("nation-name").textContent = NATIONS[Math.floor(Math.random() * NATIONS.length)];
+    step++;
+    if (step < delays.length) {
+      setTimeout(tick, delays[step]);
+    } else {
+      setNationSpin(newNation);
+      nEl.classList.remove("spinning"); nEl.classList.add("landed");
+      setTimeout(() => {
+        nEl.classList.remove("landed");
+        currentNation = newNation;
+        spinning = false;
+        updateField();
+        updateRespinButtons();
+        statEl.textContent = "Click a player, then click a position on the field";
+        statEl.classList.add("active");
+        renderPlayers();
+      }, 300);
+    }
+  }
+  tick();
 }
 
 // ════════════════════════════════════════════════════════
@@ -1600,10 +1647,10 @@ function spinTo(nation, decade, onDone) {
   document.getElementById("players-area").innerHTML = `<div class="waiting-msg">Spinning…</div>`;
   const delays = [35,35,40,45,50,55,65,80,100,130,170,220,280,350,450,550];
   let step = 0;
+  document.getElementById("nation-flag").style.display = "none";
+  document.getElementById("nation-name").textContent = "…";
   function tick() {
-    const rn = NATIONS[Math.floor(Math.random() * NATIONS.length)];
-    document.getElementById("nation-flag").textContent = NATION_FLAG[rn] || "🏏";
-    document.getElementById("nation-name").textContent = rn;
+    document.getElementById("nation-name").textContent = NATIONS[Math.floor(Math.random() * NATIONS.length)];
     dEl.textContent = ALL_DECADES[Math.floor(Math.random() * ALL_DECADES.length)];
     step++;
     if (step < delays.length) {
@@ -1674,8 +1721,8 @@ function nextSpin() {
 // ════════════════════════════════════════════════════════
 function showFinal() {
   gameOver = true; spinning = false;
-  document.getElementById("nation-flag").textContent = "🏆";
-  document.getElementById("nation-name").textContent = "Done!";
+  document.getElementById("nation-flag").style.display = "none";
+  document.getElementById("nation-name").textContent = "Done! 🏆";
   document.getElementById("decade-spin").textContent = "🏏";
   document.getElementById("spin-status").textContent = "Lineup complete!";
   document.getElementById("spin-status").classList.add("active");
@@ -1753,7 +1800,7 @@ function newGame() {
   document.getElementById("search-wrap").style.display = "none";
   document.getElementById("spin-status").textContent = "";
   document.getElementById("spin-status").classList.remove("active");
-  document.getElementById("nation-flag").textContent = "🏏";
+  document.getElementById("nation-flag").style.display = "none";
   document.getElementById("nation-name").textContent = "—";
   document.getElementById("decade-spin").textContent = "—";
   document.getElementById("players-area").innerHTML = `<div class="waiting-msg"><strong>Spinning…</strong></div>`;
